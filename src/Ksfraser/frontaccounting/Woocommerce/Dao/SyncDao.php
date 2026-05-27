@@ -196,34 +196,7 @@ class SyncDao
             $this->prefix
         ));
         
-        // Customer staging table
-        $this->db->execute(sprintf(
-            "CREATE TABLE IF NOT EXISTS %swoo_customer_staging (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                woo_customer_id INT,
-                woo_order_id INT,
-                email VARCHAR(255),
-                phone VARCHAR(50),
-                first_name VARCHAR(100),
-                last_name VARCHAR(100),
-                company VARCHAR(255),
-                address1 VARCHAR(255),
-                address2 VARCHAR(255),
-                city VARCHAR(100),
-                state VARCHAR(100),
-                postcode VARCHAR(20),
-                country VARCHAR(100),
-                raw_data TEXT,
-                imported TINYINT(1) NOT NULL DEFAULT 0,
-                imported_at DATETIME,
-                fa_debtor_no INT,
-                fa_branch_ref VARCHAR(100),
-                staged_at DATETIME,
-                INDEX idx_email (email),
-                INDEX idx_woo_customer (woo_customer_id),
-                INDEX idx_imported (imported)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
-            $this->prefix
-        ));
+        // Staging tables moved to ksf_FA_ImportStagingProcessing (generic module)
+        // Local fallback tables are created on-demand by OrderStaging/CustomerStaging
     }
 }

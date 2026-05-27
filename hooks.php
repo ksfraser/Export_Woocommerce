@@ -189,50 +189,12 @@ class hooks_woocommerce_sync extends hooks
     
     /**
      * Ensure database schema is created
+     * 
+     * Staging tables are now managed by ksf_FA_ImportStagingProcessing (generic module).
+     * Local fallback tables are created on-demand by OrderStaging/CustomerStaging.
      */
     private function ensure_schema(): void
     {
-        global $db_connections;
-        
-        $company = user_company();
-        $table_prefix = $db_connections[$company]['tbpref'];
-        
-        // Check if staging table exists
-        $sql = "SHOW TABLES LIKE '{$table_prefix}woo_customer_staging'";
-        $result = db_query($sql);
-        
-        if (db_num_rows($result) == 0) {
-            // Create staging table
-            $create_sql = "
-                CREATE TABLE IF NOT EXISTS {$table_prefix}woo_customer_staging (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    woo_customer_id INT,
-                    woo_order_id INT,
-                    email VARCHAR(255),
-                    phone VARCHAR(50),
-                    first_name VARCHAR(100),
-                    last_name VARCHAR(100),
-                    company VARCHAR(255),
-                    address1 VARCHAR(255),
-                    address2 VARCHAR(255),
-                    city VARCHAR(100),
-                    state VARCHAR(100),
-                    postcode VARCHAR(20),
-                    country VARCHAR(100),
-                    raw_data TEXT,
-                    imported TINYINT DEFAULT 0,
-                    imported_at DATETIME NULL,
-                    fa_debtor_no INT NULL,
-                    fa_branch_ref VARCHAR(100) NULL,
-                    staged_at DATETIME,
-                    INDEX idx_email (email),
-                    INDEX idx_woo_customer (woo_customer_id),
-                    INDEX idx_imported (imported)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8
-            ";
-            db_query($create_sql);
-        }
-
     }
     
     /**
