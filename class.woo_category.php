@@ -1,5 +1,21 @@
 <?php
 
+/**
+ * @deprecated 
+ * This file contains legacy code that has been superseded by the
+ * refactored module at src/Ksfraser/FrontAccounting/Woocommerce/
+ * 
+ * The new implementation provides:
+ * - TDD with 65+ passing tests
+ * - PSR-4 autoloading
+ * - SOLID principles
+ * - FA hooks integration
+ * - Customer staging with matching
+ * - Order staging (when customer not matched)
+ * 
+ * DO NOT USE - Use the new module instead.
+ */
+
 /*******************************************
  * If you change the list of properties below, ensure that you also modify
  * build_write_properties_array
@@ -9,13 +25,6 @@
  *
  *	Sends a category to WooCommerce and updates xref table
  *	If gets an error, then requests the data for the category (so can xref)
- *
- *TODO:
- *	Get the master list of categories and then insert into FA any that 
- *		don't exist (imply also xref)
- *	Delete any categories that we don't have in FA (cleanup function - side effects?)
- *	Extend to allow us to change menu order?
- *	Extend to build parent-child relationships
  *
  * BUGS: 
  * 	(unconfirmed/can't reproduce) when there is 2 spaces in the category name/description 

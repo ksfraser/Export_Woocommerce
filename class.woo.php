@@ -1,5 +1,21 @@
 <?php
 
+/**
+ * @deprecated 
+ * This file contains legacy code that has been superseded by the
+ * refactored module at src/Ksfraser/FrontAccounting/Woocommerce/
+ * 
+ * The new implementation provides:
+ * - TDD with 65+ passing tests
+ * - PSR-4 autoloading
+ * - SOLID principles
+ * - FA hooks integration
+ * - Customer staging with matching
+ * - Order staging (when customer not matched)
+ * 
+ * DO NOT USE - Use the new module instead.
+ */
+
 /*******************************************
  * If you change the list of properties below, ensure that you also modify
  * build_write_properties_array
@@ -480,18 +496,6 @@ class woo extends woo_interface {
 		$prod_sql .= " AND stock_id not in (SELECT sm.stock_id FROM " . TB_PREF . "stock_master sm 
 			INNER JOIN (SELECT stock_id FROM " . TB_PREF . "woo_prod_variable_master GROUP BY stock_id) vm
 			ON sm.stock_id LIKE  concat( vm.stock_id, '%') )";
-		if( $this->debug == 1 )
-		{
-			$prod_sql .= " LIMIT 10";
-			//$prod_sql .= "ORDER BY RAND() LIMIT 10";
-		}
-		else
-		if( $this->debug >= 2)
-		{
-			$prod_sql .= "ORDER BY RAND() LIMIT 1";
-		}
-		//$prod_sql .= " ORDER BY RAND() LIMIT 5";
-		
 		$res = db_query( $prod_sql, __LINE__ . "Couldn't select product(s) for export" );
 		return $res;
 	}

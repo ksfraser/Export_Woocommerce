@@ -1,5 +1,21 @@
 <?php
 
+/**
+ * @deprecated 
+ * This file contains legacy code that has been superseded by the
+ * refactored module at src/Ksfraser/FrontAccounting/Woocommerce/
+ * 
+ * The new implementation provides:
+ * - TDD with 65+ passing tests
+ * - PSR-4 autoloading
+ * - SOLID principles
+ * - FA hooks integration
+ * - Customer staging with matching
+ * - Order staging (when customer not matched)
+ * 
+ * DO NOT USE - Use the new module instead.
+ */
+
 /*******************************************
  * If you change the list of properties below, ensure that you also modify
  * build_write_properties_array

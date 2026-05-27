@@ -1,0 +1,117 @@
+<?php
+/**
+ * Bootstrap file for PHPUnit tests
+ * 
+ * @since 1.0.0
+ */
+
+// Define constants needed for testing
+if (!defined('TB_PREF')) {
+    define('TB_PREF', '0_');
+}
+
+if (!defined('STOCK_ID_LENGTH')) {
+    define('STOCK_ID_LENGTH', 20);
+}
+
+// Mock FrontAccounting functions that classes depend on
+if (!function_exists('display_notification')) {
+    function display_notification($msg) {
+        echo $msg . "\n";
+    }
+}
+
+if (!function_exists('display_error')) {
+    function display_error($msg) {
+        echo "ERROR: " . $msg . "\n";
+    }
+}
+
+if (!function_exists('db_query')) {
+    function db_query($sql, $msg = '') {
+        // For testing, we'll return a mock result object if needed
+        // For now, just return true to indicate success
+        return true;
+    }
+}
+
+if (!function_exists('db_fetch_assoc')) {
+    function db_fetch_assoc($res) {
+        // Return an empty array by default
+        return [];
+    }
+}
+
+if (!function_exists('db_num_rows')) {
+    function db_num_rows($res) {
+        // Return 0 by default
+        return 0;
+    }
+}
+
+if (!function_exists('user_company')) {
+    function user_company() {
+        // Return a default company ID for testing
+        return 0;
+    }
+}
+
+if (!function_exists('get_company_pref')) {
+    function get_company_pref($name, $default = '') {
+        // For testing, we'll return the default or a test value
+        // In tests, we can mock this specifically
+        return $default;
+    }
+}
+
+if (!function_exists('get_global_pref')) {
+    function get_global_pref($name, $default = '') {
+        // For testing, we'll return the default or a test value
+        return $default;
+    }
+}
+
+// Set up autoloader
+$autoloader = __DIR__ . '/../vendor/autoload.php';
+if (file_exists($autoloader)) {
+    if (!class_exists('Composer\Autoload\ClassLoader', false)) {
+        require_once $autoloader;
+    }
+    $loader = null;
+    foreach (spl_autoload_functions() as $fn) {
+        if (is_array($fn) && $fn[0] instanceof \Composer\Autoload\ClassLoader) {
+            $loader = $fn[0];
+            break;
+        }
+    }
+    
+    // Pre-load all our classes so they're available for PHPUnit
+    $classes = [
+        'Ksfraser\frontaccounting\Woocommerce\DatabaseInterface',
+        'Ksfraser\frontaccounting\Woocommerce\LoggerInterface',
+        'Ksfraser\frontaccounting\Woocommerce\WooRestClientInterface',
+        'Ksfraser\frontaccounting\Woocommerce\CategoryExporter',
+        'Ksfraser\frontaccounting\Woocommerce\ProductService',
+        'Ksfraser\frontaccounting\Woocommerce\ProductExportService',
+        'Ksfraser\frontaccounting\Woocommerce\CustomerExporter',
+        'Ksfraser\frontaccounting\Woocommerce\OrderExporter',
+        'Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging',
+        'Ksfraser\frontaccounting\Woocommerce\Staging\OrderStaging',
+        'Ksfraser\frontaccounting\Woocommerce\Dao\SyncDao',
+        'Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher',
+        'Ksfraser\frontaccounting\Woocommerce\Workflow\WooSyncStateMachine',
+        'Ksfraser\frontaccounting\Woocommerce\Workflow\Status\StagingStatusInterface',
+        'Ksfraser\frontaccounting\Woocommerce\Workflow\StateMachine\StateMachineInterface',
+    ];
+    
+    if ($loader) {
+        foreach ($classes as $class) {
+            if (!class_exists($class, false) && !interface_exists($class, false)) {
+                $loader->loadClass($class);
+            }
+        }
+    }
+}
+
+// Also require the hooks file for testing
+require_once __DIR__ . '/../hooks.php';

@@ -3,7 +3,7 @@
 -- Requires: FA 2.4+
 
 -- Customer staging table for review before import
-CREATE TABLE IF NOT EXISTS `{PREFIX}woo_customer_staging` (
+CREATE TABLE IF NOT EXISTS `0_woo_customer_staging` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `woo_customer_id` INT DEFAULT NULL,
     `woo_order_id` INT DEFAULT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS `{PREFIX}woo_customer_staging` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Order staging table for review before import
-CREATE TABLE IF NOT EXISTS `{PREFIX}woo_order_staging` (
+CREATE TABLE IF NOT EXISTS `0_woo_order_staging` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `woo_order_id` INT NOT NULL,
     `woo_status` VARCHAR(50) DEFAULT NULL,
@@ -52,8 +52,20 @@ CREATE TABLE IF NOT EXISTS `{PREFIX}woo_order_staging` (
     INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Mapping table for synced customers (FA debtor_no -> WooCommerce customer ID)
+CREATE TABLE IF NOT EXISTS `0_woo_customer_map` (
+    `debtor_no` INT NOT NULL,
+    `woo_customer_id` INT NOT NULL,
+    `email` VARCHAR(255) DEFAULT NULL,
+    `name` VARCHAR(255) DEFAULT NULL,
+    `last_synced` DATETIME DEFAULT NULL,
+    PRIMARY KEY (`debtor_no`),
+    INDEX `idx_woo_customer` (`woo_customer_id`),
+    INDEX `idx_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Mapping table for synced products (FA stock_id -> WooCommerce product ID)
-CREATE TABLE IF NOT EXISTS `{PREFIX}woo_product_map` (
+CREATE TABLE IF NOT EXISTS `0_woo_product_map` (
     `stock_id` VARCHAR(20) NOT NULL,
     `woo_product_id` INT NOT NULL,
     `woo_product_url` VARCHAR(500) DEFAULT NULL,
@@ -64,7 +76,7 @@ CREATE TABLE IF NOT EXISTS `{PREFIX}woo_product_map` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Mapping table for synced categories
-CREATE TABLE IF NOT EXISTS `{PREFIX}woo_category_map` (
+CREATE TABLE IF NOT EXISTS `0_woo_category_map` (
     `fa_category_id` INT NOT NULL,
     `woo_category_id` INT NOT NULL,
     `last_synced` DATETIME DEFAULT NULL,
@@ -73,7 +85,7 @@ CREATE TABLE IF NOT EXISTS `{PREFIX}woo_category_map` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Sync log table for audit trail
-CREATE TABLE IF NOT EXISTS `{PREFIX}woo_sync_log` (
+CREATE TABLE IF NOT EXISTS `0_woo_sync_log` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `sync_type` ENUM('product', 'category', 'order', 'customer') NOT NULL,
     `action` ENUM('export', 'import') NOT NULL,

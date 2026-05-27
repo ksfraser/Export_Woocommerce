@@ -46,23 +46,27 @@ class hooks_woocommerce_sync extends hooks
 
     public function __construct()
     {
-        global $path_to_root;
-        
-        $this->module_path = $path_to_root . '/modules/' . $this->module_name;
-        
-        // Load autoloader if available
-        $this->load_autoloader();
+        $this->module_name = 'woocommerce_sync';
+        $this->module_path = apply_filters('woocommerce_sync_module_path', dirname(__FILE__));
+    }
+
+    public function module_path()
+    {
+        return $this->module_path;
     }
     
     /**
      * Load Composer autoloader if exists
      */
-    private function load_autoloader(): void
+    protected function load_autoloader(): void
     {
-        $autoload = $this->module_path . '/vendor/autoload.php';
-        if (file_exists($autoload)) {
-            require_once $autoload;
+        $autoloadPath = $this->module_path() . '/vendor/autoload.php';
+        
+        if (file_exists($autoloadPath)) {
+            require_once $autoloadPath;
         }
+        // If autoload.php doesn't exist, we silently continue.
+        // The Composer autoloader should be available in the main FA autoloader.
     }
 
     /**
@@ -228,6 +232,7 @@ class hooks_woocommerce_sync extends hooks
             ";
             db_query($create_sql);
         }
+
     }
     
     /**
@@ -368,7 +373,8 @@ class hooks_woocommerce_sync extends hooks
             $orderExporter,
             $customerExporter,
             $categoryExporter,
-            $customerStaging
+            $customerStaging,
+            $logger
         );
         
         $GLOBALS['woo_sync_services_cache'] = array(

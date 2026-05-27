@@ -1,0 +1,361 @@
+<?php
+namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit;
+use Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher;
+use Ksfraser\frontaccounting\Woocommerce\OrderExporter;
+use Ksfraser\frontaccounting\Woocommerce\CustomerExporter;
+use Ksfraser\frontaccounting\Woocommerce\CategoryExporter;
+use Ksfraser\frontaccounting\Woocommerce\ProductService;
+use Ksfraser\frontaccounting\Woocommerce\ProductExportService;
+use Ksfraser\frontaccounting\Woocommerce\Staging\OrderStaging;
+use Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging;
+use Ksfraser\frontaccounting\Woocommerce\Dao\SyncDao;
+use Ksfraser\frontaccounting\Woocommerce\DatabaseInterface;
+use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
+use Ksfraser\frontaccounting\Woocommerce\WooRestClientInterface;
+
+use PHPUnit\Framework\TestCase;
+
+class ProductExportServiceTest extends TestCase
+{
+    private $mockRestClient;
+    private $mockLogger;
+    private $mockDb;
+    private $service;
+    private $queryCallCount = 0;
+
+    protected function setUp(): void
+    {
+        $this->mockRestClient = $this->createMock(WooRestClientInterface::class);
+        $this->mockLogger = $this->createMock(LoggerInterface::class);
+        $this->mockDb = $this->createMock(DatabaseInterface::class);
+        
+        // Set up default mocks
+        $this->mockDb->method('escape')->willReturnCallback(function($v) { return addslashes($v); });
+        $this->mockDb->method('getPrefix')->willReturn('0_');
+        
+        $this->service = new \Ksfraser\Frontaccounting\Woocommerce\ProductExportService(
+            $this->mockRestClient,
+            $this->mockLogger,
+            $this->mockDb
+        );
+    }
+
+    public function testCanBeInstantiatedWithDependencies(): void
+    {
+        $this->assertInstanceOf('Ksfraser\Frontaccounting\Woocommerce\ProductExportService', $this->service);
+    }
+
+    public function testBuildProductDataFromFA(): void
+    {
+        $faData = ['stock_id' => 'TEST-001', 'description' => 'Test Product'];
+        $wooData = $this->service->buildProductData($faData);
+        
+        $this->assertEquals('TEST-001', $wooData['sku']);
+        $this->assertEquals('Test Product', $wooData['name']);
+    }
+
+    public function testExportProductCreatesNewWhenNoWooId(): void
+    {
+        $this->mockRestClient->method('post')->willReturn(['id' => 123]);
+        
+        $result = $this->service->exportProduct(['stock_id' => 'TEST-001', 'description' => 'Test']);
+        $this->assertEquals(123, $result['id']);
+    }
+
+    public function testExportProductUpdatesExistingWhenWooIdPresent(): void
+    {
+        $this->mockRestClient->method('put')->willReturn(['id' => 456]);
+        
+        $result = $this->service->exportProduct(['stock_id' => 'TEST-001', 'woo_id' => 456, 'description' => 'Test']);
+        $this->assertEquals(456, $result['id']);
+    }
+
+    public function testExportAllSimpleProductsExportsSimpleProducts(): void
+    {
+        $products = [
+            ['stock_id' => 'P001', 'description' => 'Product 1', 'price' => '10.00'],
+            ['stock_id' => 'P002', 'description' => 'Product 2', 'price' => '20.00'],
+        ];
+
+        $this->mockDb->method('query')
+            ->willReturnCallback(fn($sql) => match(true) {
+                strpos($sql, 'stock_master') !== false => $products,
+                default => [],
+            });
+
+        $this->mockRestClient->method('post')->willReturn(['id' => 999]);
+
+        $result = $this->service->exportAllSimpleProducts();
+
+        $this->assertEquals(2, $result['exported']);
+        $this->assertEquals(2, $result['total']);
+    }
+
+    public function testExportAllSimpleProductsHandlesErrors(): void
+    {
+        $products = [
+            ['stock_id' => 'P001', 'description' => 'Product 1', 'price' => '10.00'],
+        ];
+
+        $this->mockDb->method('query')->willReturn($products);
+        $this->mockRestClient->method('post')->willThrowException(new \Exception('API Error'));
+
+        $result = $this->service->exportAllSimpleProducts();
+
+        $this->assertEquals(0, $result['exported']);
+        $this->assertEquals(1, $result['total']);
+    }
+
+    public function testGetAllProducts(): void
+    {
+        $this->mockRestClient->method('get')->willReturn([['id' => 1, 'name' => 'Product 1']]);
+        
+        $result = $this->service->getProducts();
+        $this->assertCount(1, $result);
+    }
+
+    public function testFindProductBySku(): void
+    {
+        $this->mockRestClient->method('get')->willReturn([['id' => 123, 'sku' => 'TEST-001']]);
+        
+        $result = $this->service->findProductBySku('TEST-001');
+        $this->assertEquals(123, $result['id']);
+    }
+
+    public function testDeleteProductBySku(): void
+    {
+        $this->mockRestClient->method('get')->willReturn([['id' => 123, 'sku' => 'TEST-001']]);
+        $this->mockRestClient->method('delete')->willReturn(['deleted' => true]);
+        
+        $result = $this->service->deleteProductBySku('TEST-001');
+        $this->assertTrue($result['deleted']);
+    }
+
+    public function testBuildVariableProductData(): void
+    {
+        $this->setupMockForVariableProduct();
+        
+        $faData = [
+            'stock_id' => 'VAR-001',
+            'description' => 'Variable Product'
+        ];
+        
+        $wooData = $this->service->buildProductData($faData);
+        
+        $this->assertEquals('variable', $wooData['type']);
+    }
+
+    public function testAddProductAttributes(): void
+    {
+        $attributes = [
+            ['name' => 'Color', 'options' => ['Red', 'Blue'], 'visible' => true],
+            ['name' => 'Size', 'options' => ['S', 'M', 'L'], 'visible' => true]
+        ];
+        
+        $this->mockRestClient->method('put')->willReturn(['id' => 123]);
+        
+        $result = $this->service->addProductAttributes(123, $attributes);
+        
+        $this->assertTrue($result);
+    }
+
+    public function testCreateProductVariation(): void
+    {
+        $variationData = [
+            'sku' => 'VAR-001-S-RED',
+            'attributes' => ['Color' => 'Red', 'Size' => 'S'],
+            'price' => 29.99
+        ];
+        
+        $this->mockRestClient->method('post')->willReturn(['id' => 789]);
+        
+        $result = $this->service->createVariation(123, $variationData);
+        
+        $this->assertEquals(789, $result['id']);
+    }
+
+    public function testExportVariableProduct(): void
+    {
+        $variations = [
+            ['sku' => 'VAR-001-S', 'price' => 29.99, 'attributes' => ['Size' => 'S']],
+            ['sku' => 'VAR-001-M', 'price' => 34.99, 'attributes' => ['Size' => 'M']]
+        ];
+        
+        // Mock DB for getting parent product data
+        $this->mockDb->method('query')
+            ->willReturnCallback(function($sql) {
+                if (strpos($sql, 'stock_master') !== false) {
+                    return [['stock_id' => 'VAR-001', 'description' => 'Variable Product']];
+                }
+                return [];
+            });
+        
+        $this->mockRestClient->method('post')->willReturn(['id' => 999]);
+        
+        $result = $this->service->exportVariableProduct('VAR-001', $variations);
+        
+        $this->assertEquals(999, $result['parent_id']);
+    }
+
+    public function testDetermineProductTypeSimple(): void
+    {
+        // Mock: no product_hierarchy table -> simple
+        $this->mockDb->method('query')
+            ->willReturnCallback(function($sql) {
+                if (strpos($sql, 'SHOW TABLES') !== false) {
+                    return []; // Table doesn't exist
+                }
+                return [];
+            });
+        
+        $faData = ['stock_id' => 'SIMPLE-001', 'description' => 'Simple Product'];
+        $data = $this->service->buildProductData($faData);
+        
+        $this->assertEquals('simple', $data['type']);
+    }
+    
+    public function testDetermineProductTypeVariation(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(function($sql) {
+                if (strpos($sql, 'SHOW TABLES') !== false) {
+                    return [['Tables_in_db' => '0_product_hierarchy']]; // Table exists
+                }
+                if (strpos($sql, 'child_stock_id') !== false) {
+                    return [['parent_stock_id' => 'VAR-001']]; // Has parent -> variation
+                }
+                return [];
+            });
+        
+        $faData = ['stock_id' => 'VAR-001-S', 'description' => 'Variation'];
+        $data = $this->service->buildProductData($faData);
+        
+        $this->assertEquals('variation', $data['type']);
+    }
+    
+    public function testDetermineProductTypeVariable(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(function($sql) {
+                if (strpos($sql, 'SHOW TABLES') !== false) {
+                    if (strpos($sql, 'product_hierarchy') !== false) {
+                        return [['Tables_in_db' => '0_product_hierarchy']]; // Table exists
+                    }
+                    return []; // Other tables don't exist
+                }
+                if (strpos($sql, 'child_stock_id') !== false) {
+                    return []; // No parent
+                }
+                if (strpos($sql, 'COUNT') !== false) {
+                    return [['cnt' => 2]]; // Has children -> variable
+                }
+                return [];
+            });
+        
+        $faData = ['stock_id' => 'VAR-001', 'description' => 'Variable Product'];
+        $data = $this->service->buildProductData($faData);
+        
+        $this->assertEquals('variable', $data['type']);
+    }
+    
+    public function testRecodeSkuUpdatesWooCommerceAndDb(): void
+    {
+        $this->mockRestClient->method('get')
+            ->with('products', ['sku' => 'OLD-001'])
+            ->willReturn([['id' => 123, 'sku' => 'OLD-001']]);
+
+        $this->mockRestClient->method('put')
+            ->with('products/123', $this->arrayHasKey('sku'))
+            ->willReturn(['id' => 123, 'sku' => 'NEW-001']);
+
+        $this->mockDb->method('query')
+            ->willReturnCallback(fn($sql) => match(true) {
+                strpos($sql, 'SHOW TABLES') !== false => [],
+                default => [],
+            });
+
+        $result = $this->service->recodeSku('OLD-001', 'NEW-001');
+
+        $this->assertTrue($result);
+    }
+
+    public function testRecodeSkuReturnsFalseWhenProductNotFound(): void
+    {
+        $this->mockRestClient->method('get')
+            ->with('products', ['sku' => 'NONEXISTENT'])
+            ->willReturn([]);
+
+        $result = $this->service->recodeSku('NONEXISTENT', 'NEW-SKU');
+
+        $this->assertFalse($result);
+    }
+
+    public function testRecodeSkuReturnsFalseOnApiError(): void
+    {
+        $this->mockRestClient->method('get')
+            ->willThrowException(new \Exception('API Error'));
+
+        $result = $this->service->recodeSku('OLD-001', 'NEW-001');
+
+        $this->assertFalse($result);
+    }
+
+    public function testRecodeAllSkusRecodesMultipleProducts(): void
+    {
+        $skuMap = [
+            ['old_sku' => 'OLD-001', 'new_sku' => 'NEW-001'],
+            ['old_sku' => 'OLD-002', 'new_sku' => 'NEW-002'],
+        ];
+
+        $this->mockDb->method('query')
+            ->willReturnCallback(fn($sql) => match(true) {
+                strpos($sql, 'sku_recode_map') !== false => $skuMap,
+                default => [],
+            });
+
+        $this->mockRestClient->method('get')->willReturn([['id' => 123]]);
+        $this->mockRestClient->method('put')->willReturn(['id' => 123]);
+
+        $result = $this->service->recodeAllSkus();
+
+        $this->assertEquals(2, $result['recoded']);
+        $this->assertEquals(2, $result['total']);
+    }
+
+    public function testRecodeAllSkusHandlesEmptyMap(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(fn($sql) => match(true) {
+                strpos($sql, 'sku_recode_map') !== false => [],
+                default => [],
+            });
+
+        $result = $this->service->recodeAllSkus();
+
+        $this->assertEquals(0, $result['recoded']);
+        $this->assertEquals(0, $result['total']);
+    }
+
+    private function setupMockForVariableProduct(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(function($sql) {
+                if (strpos($sql, 'SHOW TABLES') !== false) {
+                    if (strpos($sql, 'product_hierarchy') !== false) {
+                        return [['Tables_in_db' => '0_product_hierarchy']];
+                    }
+                    return []; // Other tables don't exist
+                }
+                if (strpos($sql, 'child_stock_id') !== false) {
+                    return []; // No parent
+                }
+                if (strpos($sql, 'COUNT') !== false) {
+                    return [['cnt' => 1]]; // Has children
+                }
+                if (strpos($sql, 'product_attribute_assignments') !== false) {
+                    return []; // No attributes
+                }
+                return [];
+            });
+    }
+}

@@ -1,0 +1,13 @@
+Package: woocommerce_sync
+Name: WooCommerce Sync
+Description: Export/Import FrontAccounting data to/from WooCommerce via REST API
+Author: Kevin Fraser <kevin@ksfraser.com>
+Maintenance: Kevin Fraser <kevin@ksfraser.com>
+Homepage: http://ksfraser.com
+Type: extension
+InstallPath: modules/woocommerce_sync
+Filename: woocommerce_sync
+Version: 1.0.0
+FA-Version: 2.4
+PHP-Version: 7.3
+Depends: woocommerce

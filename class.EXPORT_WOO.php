@@ -440,15 +440,6 @@ class EXPORT_WOO extends generic_fa_interface
 	 *	Populate WOO
  	 *	This Function populates the WOO table.
 	 *
-	 *	TODO:
-	 *		Alter table to have Virtual and Downloadable columns
-	 *		Alter table to have Shipping data (weight, dimensions)
-	 *		Create Query that updates Virtual (service) products
-	 *		Create Query that updates Downloadable products
-	 *		Create Query that updates Shipping data
-	 *		Once the CRM is in place, alter table for crosssell and upsell
-	 *		Create Query to update crosssell and upsell
-	 *
 	 ************************************************************************/
 	function populate_woo()
 	{
