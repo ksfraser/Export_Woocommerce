@@ -48,7 +48,8 @@ class ProductDTOExtendedTest extends TestCase
         $this->assertEquals('10', $result['regular_price']);
         $this->assertEquals(5, $result['stock_quantity']);
         $this->assertTrue($result['manage_stock']);
-        $this->assertTrue($result['in_stock']);
+        $this->assertEquals('instock', $result['stock_status']);
+        $this->assertArrayNotHasKey('in_stock', $result);
     }
 
     public function testToArrayWithDescription(): void

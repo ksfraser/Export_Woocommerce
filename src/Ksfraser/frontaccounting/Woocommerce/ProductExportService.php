@@ -43,9 +43,10 @@ class ProductExportService
         }
 
         if (isset($faData['instock'])) {
-            $data['stock_quantity'] = (int)$faData['instock'];
+            $stockQuantity = (int)$faData['instock'];
+            $data['stock_quantity'] = $stockQuantity;
             $data['manage_stock'] = true;
-            $data['in_stock'] = $faData['instock'] > 0;
+            $data['stock_status'] = $stockQuantity > 0 ? 'instock' : 'outofstock';
         }
 
         // Get dimensions and weight from FA Product Attributes / stock_master
@@ -76,9 +77,6 @@ class ProductExportService
         // Fallback to stock_master weight if present in source data
         if (!empty($faData['weight'])) {
             $data['weight'] = (string)$faData['weight'];
-            if (!empty($faData['weight_unit']) && $faData['weight_unit'] !== 'kg') {
-                $data['weight_unit'] = $faData['weight_unit'];
-            }
         }
 
         if (!$this->tableExists('product_dimensions')) {
@@ -96,9 +94,6 @@ class ProductExportService
             
             if (!empty($dim['weight'])) {
                 $data['weight'] = (string)$dim['weight'];
-                if (!empty($dim['weight_unit']) && $dim['weight_unit'] !== 'kg') {
-                    $data['weight_unit'] = $dim['weight_unit'];
-                }
             }
             
             if (!empty($dim['length']) && !empty($dim['width']) && !empty($dim['height'])) {
@@ -107,9 +102,6 @@ class ProductExportService
                     'width' => (string)$dim['width'],
                     'height' => (string)$dim['height']
                 ];
-                if (!empty($dim['dim_unit']) && $dim['dim_unit'] !== 'cm') {
-                    $data['dimensions']['unit'] = $dim['dim_unit'];
-                }
             }
         }
     }
@@ -365,11 +357,14 @@ class ProductExportService
         // Create variations
         $createdVariations = [];
         foreach ($variations as $variation) {
+            $variationStock = (int)($variation['stock'] ?? 0);
             $variationData = [
                 'sku' => $variation['sku'],
                 'regular_price' => (string)($variation['price'] ?? '0'),
                 'attributes' => $variation['attributes'],
-                'stock_quantity' => (int)($variation['stock'] ?? 0)
+                'manage_stock' => true,
+                'stock_quantity' => $variationStock,
+                'stock_status' => $variationStock > 0 ? 'instock' : 'outofstock'
             ];
 
             $result = $this->restClient->post(

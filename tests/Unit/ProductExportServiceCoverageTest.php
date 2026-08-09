@@ -46,6 +46,28 @@ class ProductExportServiceCoverageTest extends TestCase
         $this->assertArrayNotHasKey('dimensions', $result);
     }
 
+    public function testBuildProductDataEmitsStockStatusWhenInStock(): void
+    {
+        $faData = ['stock_id' => 'TEST-001', 'description' => 'Test', 'instock' => 7];
+        $result = $this->service->buildProductData($faData);
+
+        $this->assertEquals(7, $result['stock_quantity']);
+        $this->assertTrue($result['manage_stock']);
+        $this->assertEquals('instock', $result['stock_status']);
+        $this->assertArrayNotHasKey('in_stock', $result);
+    }
+
+    public function testBuildProductDataEmitsOutOfStockAndOmitsLegacyInStock(): void
+    {
+        $faData = ['stock_id' => 'TEST-001', 'description' => 'Test', 'instock' => 0];
+        $result = $this->service->buildProductData($faData);
+
+        $this->assertEquals(0, $result['stock_quantity']);
+        $this->assertTrue($result['manage_stock']);
+        $this->assertEquals('outofstock', $result['stock_status']);
+        $this->assertArrayNotHasKey('in_stock', $result);
+    }
+
     public function testAddDimensionsAndWeightTableExistsWithData(): void
     {
         $this->mockDb->method('query')
@@ -70,11 +92,11 @@ class ProductExportServiceCoverageTest extends TestCase
         $result = $this->service->buildProductData($faData);
 
         $this->assertEquals('2.5', $result['weight']);
-        $this->assertEquals('lb', $result['weight_unit']);
+        $this->assertArrayNotHasKey('weight_unit', $result);
         $this->assertEquals('10', $result['dimensions']['length']);
         $this->assertEquals('5', $result['dimensions']['width']);
         $this->assertEquals('3', $result['dimensions']['height']);
-        $this->assertEquals('in', $result['dimensions']['unit']);
+        $this->assertArrayNotHasKey('unit', $result['dimensions']);
     }
 
     public function testAddDimensionsAndWeightDefaultUnitsNotAdded(): void
@@ -578,6 +600,40 @@ class ProductExportServiceCoverageTest extends TestCase
         $result = $this->service->exportVariableProduct('VAR-001', $variations);
         $this->assertEquals(100, $result['parent_id']);
         $this->assertCount(2, $result['variations']);
+    }
+
+    public function testExportVariableProductSendsManageStockAndStockStatus(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(fn($sql) => match(true) {
+                strpos($sql, 'stock_master') !== false => [['stock_id' => 'VAR-001', 'description' => 'Test']],
+                default => [],
+            });
+
+        $captured = [];
+        $this->mockRestClient->method('post')
+            ->willReturnCallback(function($endpoint, $data = []) use (&$captured) {
+                $id = 100 + count($captured);
+                $captured[] = $data;
+                return ['id' => $id];
+            });
+
+        $variations = [
+            ['sku' => 'VAR-001-S', 'price' => '10.00', 'stock' => 5, 'attributes' => []],
+            ['sku' => 'VAR-001-M', 'price' => '12.00', 'stock' => 0, 'attributes' => []],
+        ];
+
+        $result = $this->service->exportVariableProduct('VAR-001', $variations);
+        $this->assertEquals(100, $result['parent_id']);
+        $this->assertCount(2, $result['variations']);
+
+        $this->assertTrue($captured[1]['manage_stock']);
+        $this->assertEquals(5, $captured[1]['stock_quantity']);
+        $this->assertEquals('instock', $captured[1]['stock_status']);
+
+        $this->assertTrue($captured[2]['manage_stock']);
+        $this->assertEquals(0, $captured[2]['stock_quantity']);
+        $this->assertEquals('outofstock', $captured[2]['stock_status']);
     }
 
     public function testUpdateSimpleProductsDebugMode(): void

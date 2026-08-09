@@ -48,7 +48,8 @@ class ProductDataBuilderExtendedTest extends TestCase
         $result = $this->builder->build($faData);
         $this->assertEquals(50, $result['stock_quantity']);
         $this->assertTrue($result['manage_stock']);
-        $this->assertTrue($result['in_stock']);
+        $this->assertEquals('instock', $result['stock_status']);
+        $this->assertArrayNotHasKey('in_stock', $result);
     }
 
     public function testBuildWithZeroStock(): void
@@ -57,7 +58,8 @@ class ProductDataBuilderExtendedTest extends TestCase
         $this->mockDb->method('query')->willReturn([]);
         $result = $this->builder->build($faData);
         $this->assertEquals(0, $result['stock_quantity']);
-        $this->assertFalse($result['in_stock']);
+        $this->assertEquals('outofstock', $result['stock_status']);
+        $this->assertArrayNotHasKey('in_stock', $result);
     }
 
     public function testBuildWithLongDescription(): void
@@ -90,11 +92,11 @@ class ProductDataBuilderExtendedTest extends TestCase
         $faData = ['stock_id' => 'TEST-001', 'description' => 'Test', 'price' => '10.00'];
         $result = $this->builder->build($faData);
         $this->assertEquals('5.5', $result['weight']);
-        $this->assertEquals('lb', $result['weight_unit']);
+        $this->assertArrayNotHasKey('weight_unit', $result);
         $this->assertEquals('10', $result['dimensions']['length']);
         $this->assertEquals('5', $result['dimensions']['width']);
         $this->assertEquals('2', $result['dimensions']['height']);
-        $this->assertEquals('in', $result['dimensions']['unit']);
+        $this->assertArrayNotHasKey('unit', $result['dimensions']);
     }
 
     public function testAddDimensionsAndWeightFallbackToFaData(): void

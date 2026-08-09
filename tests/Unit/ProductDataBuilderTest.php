@@ -61,7 +61,8 @@ class ProductDataBuilderTest extends TestCase
 
         $this->assertEquals(25, $result['stock_quantity']);
         $this->assertTrue($result['manage_stock']);
-        $this->assertTrue($result['in_stock']);
+        $this->assertEquals('instock', $result['stock_status']);
+        $this->assertArrayNotHasKey('in_stock', $result);
     }
 
     public function testBuildWithZeroStock(): void
@@ -79,7 +80,8 @@ class ProductDataBuilderTest extends TestCase
         $result = $this->builder->build($faData);
 
         $this->assertEquals(0, $result['stock_quantity']);
-        $this->assertFalse($result['in_stock']);
+        $this->assertEquals('outofstock', $result['stock_status']);
+        $this->assertArrayNotHasKey('in_stock', $result);
     }
 
     public function testBuildWithDimensionsFromTable(): void

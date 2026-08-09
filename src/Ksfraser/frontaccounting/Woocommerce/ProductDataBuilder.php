@@ -30,9 +30,10 @@ class ProductDataBuilder
         }
 
         if (isset($faData['instock'])) {
-            $data['stock_quantity'] = (int)$faData['instock'];
+            $stockQuantity = (int)$faData['instock'];
+            $data['stock_quantity'] = $stockQuantity;
             $data['manage_stock'] = true;
-            $data['in_stock'] = (int)$faData['instock'] > 0;
+            $data['stock_status'] = $stockQuantity > 0 ? 'instock' : 'outofstock';
         }
 
         $this->addDimensionsAndWeight($stockId, $data, $faData);
@@ -86,9 +87,6 @@ class ProductDataBuilder
 
                 if (!empty($dim['weight'])) {
                     $data['weight'] = (string)$dim['weight'];
-                    if (!empty($dim['weight_unit']) && $dim['weight_unit'] !== 'kg') {
-                        $data['weight_unit'] = $dim['weight_unit'];
-                    }
                 }
 
                 if (!empty($dim['length']) && !empty($dim['width']) && !empty($dim['height'])) {
@@ -97,9 +95,6 @@ class ProductDataBuilder
                         'width' => (string)$dim['width'],
                         'height' => (string)$dim['height'],
                     ];
-                    if (!empty($dim['dim_unit']) && $dim['dim_unit'] !== 'cm') {
-                        $data['dimensions']['unit'] = $dim['dim_unit'];
-                    }
                 }
                 return;
             }

@@ -530,7 +530,7 @@ class ProductDTO
         if ($this->stockQty !== null) {
             $data['stock_quantity'] = $this->stockQty;
             $data['manage_stock'] = true;
-            $data['in_stock'] = $this->stockQty > 0;
+            $data['stock_status'] = $this->stockQty > 0 ? 'instock' : 'outofstock';
         }
         
         if ($this->weight !== null) {
