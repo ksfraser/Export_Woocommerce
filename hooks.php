@@ -36,18 +36,18 @@ if (!defined('SA_WOOCOMMERCE_STAGING')) {
 /**
  * WooCommerce Sync Hooks Class
  */
-class hooks_woocommerce_sync extends hooks
+class hooks_ksf_FA_Woocommerce extends hooks
 {
     /** @var string Module name */
-    var $module_name = 'woocommerce_sync';
+    var $module_name = 'ksf_FA_Woocommerce';
     
     /** @var string Module path */
     var $module_path;
 
     public function __construct()
     {
-        $this->module_name = 'woocommerce_sync';
-        $this->module_path = apply_filters('woocommerce_sync_module_path', dirname(__FILE__));
+        $this->module_name = 'ksf_FA_Woocommerce';
+        $this->module_path = apply_filters('ksf_FA_Woocommerce_module_path', dirname(__FILE__));
     }
 
     public function module_path()
@@ -186,6 +186,85 @@ class hooks_woocommerce_sync extends hooks
     {
         // Add any hook points here for extending other modules
     }
+
+    /**
+     * Stock item lifecycle listeners
+     *
+     * These methods are invoked by ksf_FA_Common's shared ItemEventPublisher
+     * via hook_invoke_all('item_created' / 'item_updated', $data). Payload:
+     *   ['stock_id' => string, 'event' => 'created'|'updated', 'trigger' => string, ...]
+     *
+     * @param array &$data Event payload
+     * @param array|null $opts Options
+     * @return mixed
+     */
+    public function item_created(&$data, $opts = null) {
+        $this->handleItemEvent($data, 'created');
+        return null;
+    }
+
+    public function item_updated(&$data, $opts = null) {
+        $this->handleItemEvent($data, 'updated');
+        return null;
+    }
+
+    /**
+     * Handle an item lifecycle event by pushing the item to WooCommerce.
+     *
+     * @param array $data Event payload
+     * @param string $event 'created' or 'updated'
+     * @return void
+     */
+    private function handleItemEvent($data, $event) {
+        if (!isset($data['stock_id']) || $data['stock_id'] === '') {
+            return;
+        }
+        if (!function_exists('user_company')) {
+            return;
+        }
+        if (empty($GLOBALS['db_connections'])) {
+            return;
+        }
+        $listener = $this->buildItemEventListener();
+        if ($listener === null) {
+            return;
+        }
+        $stockId = (string) $data['stock_id'];
+        try {
+            $result = $listener->sync($stockId, $event);
+            if ($result['status'] === 'failed') {
+                error_log('ksf_FA_Woocommerce: item_' . $event . ' sync failed for ' . $stockId . ': ' . $result['reason']);
+            }
+        } catch (\Throwable $e) {
+            error_log('ksf_FA_Woocommerce: item_' . $event . ' sync error for ' . $stockId . ': ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Build the item event listener bound to the current FA company.
+     *
+     * @return \Ksfraser\frontaccounting\Woocommerce\ItemEventListener|null
+     */
+    private function buildItemEventListener() {
+        $autoload = $this->module_path . '/vendor/autoload.php';
+        if (file_exists($autoload)) {
+            require_once $autoload;
+        }
+        if (!class_exists('\Ksfraser\frontaccounting\Woocommerce\ItemEventListener')) {
+            return null;
+        }
+        try {
+            $services = $this->get_services();
+            return new \Ksfraser\frontaccounting\Woocommerce\ItemEventListener(
+                new \Ksfraser\frontaccounting\Woocommerce\Dao\StockItemDao($services['db']),
+                $services['logger'],
+                $services['productExporter']
+            );
+        } catch (\Throwable $e) {
+            error_log('ksf_FA_Woocommerce: failed to build item event listener: ' . $e->getMessage());
+            return null;
+        }
+    }
     
     /**
      * Ensure database schema is created
@@ -258,61 +337,28 @@ class hooks_woocommerce_sync extends hooks
         global $db_connections;
         $company = user_company();
         
-        // Get DB connection
-        $db = new mysqli(
-            $db_connections[$company]['host'],
-            $db_connections[$company]['username'],
-            $db_connections[$company]['password'],
-            $db_connections[$company]['dbname']
-        );
-        
-        $table_prefix = $db_connections[$company]['tbpref'];
-        
         // Get WooCommerce config
         $config = $this->get_woo_config();
         
         // Create services
-        $restClient = new \Ksfraser\Frontaccounting\Woocommerce\WooRestClient(
-            $config['wc_url'],
-            $config['wc_key'],
-            $config['wc_secret']
-        );
-        
         $logger = new \Ksfraser\Frontaccounting\Woocommerce\FileLogger(
             $this->module_path . '/logs/sync.log'
         );
         
-        $dbInterface = new class($db, $table_prefix) implements \Ksfraser\Frontaccounting\Woocommerce\DatabaseInterface {
-            private $db;
-            private $prefix;
-            
-            public function __construct($db, $prefix) {
-                $this->db = $db;
-                $this->prefix = $prefix;
-            }
-            
-            public function query(string $sql): array {
-                $result = $this->db->query($sql);
-                if (!$result) return [];
-                $rows = [];
-                while ($row = $result->fetch_assoc()) {
-                    $rows[] = $row;
-                }
-                return $rows;
-            }
-            
-            public function execute(string $sql): bool {
-                return $this->db->query($sql);
-            }
-            
-            public function getPrefix(): string {
-                return $this->prefix;
-            }
-            
-            public function escape(string $value): string {
-                return $this->db->real_escape_string($value);
-            }
-        };
+        $wooClient = new \Automattic\WooCommerce\Client(
+            $config['wc_url'],
+            $config['wc_key'],
+            $config['wc_secret']
+        );
+        $restClient = new \Ksfraser\frontaccounting\Woocommerce\WooRestClient($wooClient, $logger);
+        
+        $dbInterface = new \Ksfraser\frontaccounting\Woocommerce\MysqliDatabase(
+            $db_connections[$company]['host'],
+            $db_connections[$company]['username'],
+            $db_connections[$company]['password'],
+            $db_connections[$company]['dbname'],
+            $db_connections[$company]['tbpref']
+        );
         
         $productExporter = new \Ksfraser\Frontaccounting\Woocommerce\ProductExportService(
             $restClient, $logger, $dbInterface

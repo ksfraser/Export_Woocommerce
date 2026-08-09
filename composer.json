@@ -5,7 +5,7 @@
     "repositories": [
         {
             "type": "path",
-            "url": "/home/export_woocommerce/Documents/ksf_Workflow"
+            "url": "/home/kevin/Documents/ksf_Workflow"
         }
     ],
     "require": {
@@ -29,10 +29,7 @@
         }
     },
     "config": {
-        "platform": {
-            "php": "7.3.0"
-        },
-        "minimum-stability": "dev",
+        "minimum-stability": "stable",
         "prefer-stable": true
     }
 }

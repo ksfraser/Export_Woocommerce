@@ -28,15 +28,15 @@ class HooksTest extends TestCase
 
     public function testHooksWoocommerceSyncClassExists(): void
     {
-        $this->assertTrue(class_exists('hooks_woocommerce_sync'));
+        $this->assertTrue(class_exists('hooks_ksf_FA_Woocommerce'));
     }
 
     public function testHooksWoocommerceSyncHasRequiredProperties(): void
     {
-        $hook = new \hooks_woocommerce_sync();
+        $hook = new \hooks_ksf_FA_Woocommerce();
         $this->assertObjectHasProperty('module_name', $hook);
         $this->assertObjectHasProperty('module_path', $hook);
-        $this->assertEquals('woocommerce_sync', $hook->module_name);
+        $this->assertEquals('ksf_FA_Woocommerce', $hook->module_name);
     }
 
     public function testSecurityConstantsAreDefined(): void
@@ -69,7 +69,7 @@ class HooksTest extends TestCase
     {
         // Test that when cache is set, it returns the cache
         $GLOBALS['woo_sync_config_cache'] = ['wc_url' => 'cached_url', 'wc_key' => 'cached_key', 'wc_secret' => 'cached_secret'];
-        $hook = new \hooks_woocommerce_sync();
+        $hook = new \hooks_ksf_FA_Woocommerce();
         $config = $hook->get_woo_config();
         $this->assertIsArray($config);
         $this->assertArrayHasKey('wc_url', $config);
@@ -91,7 +91,7 @@ class HooksTest extends TestCase
 
     public function testPreferencesMethodReturnsExpectedArray(): void
     {
-        $hook = new \hooks_woocommerce_sync();
+        $hook = new \hooks_ksf_FA_Woocommerce();
         $prefs = $hook->preferences(false);
         
         $this->assertIsArray($prefs);
@@ -111,7 +111,7 @@ class HooksTest extends TestCase
 
     public function testInstallReturnsTrue(): void
     {
-        $hook = new \hooks_woocommerce_sync();
+        $hook = new \hooks_ksf_FA_Woocommerce();
         $this->assertTrue($hook->install());
     }
 
@@ -164,7 +164,7 @@ class HooksTest extends TestCase
         
         try {
             // Create a hook instance and directly test that activate returns true
-            $hook = new \hooks_woocommerce_sync();
+            $hook = new \hooks_ksf_FA_Woocommerce();
             
             // Activate should return true
             $this->assertTrue($hook->activate());
@@ -181,13 +181,13 @@ class HooksTest extends TestCase
 
     public function testDeactivateReturnsTrue(): void
     {
-        $hook = new \hooks_woocommerce_sync();
+        $hook = new \hooks_ksf_FA_Woocommerce();
         $this->assertTrue($hook->deactivate());
     }
 
     public function testActivateExtensionReturnsTrue(): void
     {
-        $hook = new \hooks_woocommerce_sync();
+        $hook = new \hooks_ksf_FA_Woocommerce();
         $this->assertTrue($hook->activate_extension('test_company', false));
         $this->assertTrue($hook->activate_extension('test_company', true)); // check_only = true
     }
@@ -195,7 +195,7 @@ class HooksTest extends TestCase
     public function testLoadAutoloaderDoesNotThrowExceptionWhenFileMissing(): void
     {
         // Since load_autoloader is now protected, we can test it using reflection
-        $hook = new \hooks_woocommerce_sync();
+        $hook = new \hooks_ksf_FA_Woocommerce();
         
         // Mock the module_path method to return a non-existent path
         $reflection = new \ReflectionObject($hook);
@@ -210,5 +210,30 @@ class HooksTest extends TestCase
         $loadMethod = $reflection->getMethod('load_autoloader');
         $loadMethod->setAccessible(true);
         $loadMethod->invoke($hook);
+    }
+
+    public function testItemCreatedAndItemUpdatedMethodsExist(): void
+    {
+        $hook = new \hooks_ksf_FA_Woocommerce();
+        $this->assertTrue(method_exists($hook, 'item_created'));
+        $this->assertTrue(method_exists($hook, 'item_updated'));
+    }
+
+    public function testItemEventWithEmptyStockIdIsIgnored(): void
+    {
+        $hook = new \hooks_ksf_FA_Woocommerce();
+        $data = ['stock_id' => '', 'event' => 'created', 'trigger' => 'publisher'];
+        $this->assertNull($hook->item_created($data));
+    }
+
+    public function testItemEventWithoutDbConnectionsIsIgnored(): void
+    {
+        // Without $GLOBALS['db_connections'] the handler must not attempt to
+        // build services (which would open a real DB connection).
+        unset($GLOBALS['db_connections']);
+        $hook = new \hooks_ksf_FA_Woocommerce();
+        $data = ['stock_id' => 'TEST-001', 'event' => 'created', 'trigger' => 'publisher'];
+        $this->assertNull($hook->item_created($data));
+        $this->assertNull($hook->item_updated($data));
     }
 }

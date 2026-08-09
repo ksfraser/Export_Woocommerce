@@ -40,7 +40,10 @@ class ProductExportServiceCoverageTest extends TestCase
         $faData = ['stock_id' => 'TEST-001', 'description' => 'Test', 'weight' => '5.0'];
         $result = $this->service->buildProductData($faData);
 
-        $this->assertArrayNotHasKey('weight', $result);
+        // Weight from faData is always applied first; table not found means no dimensions mapping
+        $this->assertArrayHasKey('weight', $result);
+        $this->assertEquals('5.0', $result['weight']);
+        $this->assertArrayNotHasKey('dimensions', $result);
     }
 
     public function testAddDimensionsAndWeightTableExistsWithData(): void

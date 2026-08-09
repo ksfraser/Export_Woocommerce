@@ -168,7 +168,7 @@ class VariableProductService
     public function getSkuCombos(string $baseSku): array
     {
         return $this->db->query(sprintf(
-            "SELECT * FROM %s WHERE base_sku = '%s' ORDER BY sort_order",
+            "SELECT * FROM %s WHERE stock_id = '%s' ORDER BY priority",
             $this->getTableName('woo_prod_variable_sku_combos'),
             $this->db->escape($baseSku)
         ));
@@ -186,7 +186,7 @@ class VariableProductService
     public function getSkuFullVariations(string $baseSku): array
     {
         return $this->db->query(sprintf(
-            "SELECT * FROM %s WHERE base_sku = '%s' ORDER BY sort_order",
+            "SELECT * FROM %s WHERE stock_id = '%s' ORDER BY sku",
             $this->getTableName('woo_prod_variable_sku_full'),
             $this->db->escape($baseSku)
         ));

@@ -19,11 +19,14 @@ use Ksfraser\Frontaccounting\Woocommerce\Staging\CustomerStaging;
 use Ksfraser\Frontaccounting\Woocommerce\UI\ImportExportDispatcher;
 
 // Initialize dependencies (simplified - use DI container in production)
-$restClient = new \Ksfraser\Frontaccounting\Woocommerce\WooRestClient(
+$logger = new \Ksfraser\Frontaccounting\Woocommerce\FileLogger(__DIR__ . '/logs/sync.log');
+
+$wooClient = new \Automattic\WooCommerce\Client(
     getenv('WC_URL') ?: 'https://example.com/wp-json/wc/v3/',
     getenv('WC_CONSUMER_KEY') ?: '',
     getenv('WC_CONSUMER_SECRET') ?: ''
 );
+$restClient = new \Ksfraser\Frontaccounting\Woocommerce\WooRestClient($wooClient, $logger);
 
 $db = new \Ksfraser\Frontaccounting\Woocommerce\MysqliDatabase(
     getenv('DB_HOST') ?: 'localhost',
@@ -32,8 +35,6 @@ $db = new \Ksfraser\Frontaccounting\Woocommerce\MysqliDatabase(
     getenv('DB_NAME') ?: 'frontaccounting',
     getenv('DB_PREFIX') ?: '0_'
 );
-
-$logger = new \Ksfraser\Frontaccounting\Woocommerce\FileLogger(__DIR__ . '/logs/sync.log');
 
 // Create services
 $productExporter = new ProductExportService($restClient, $logger, $db);

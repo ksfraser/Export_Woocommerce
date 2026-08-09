@@ -124,30 +124,42 @@ class VariableProductServiceTest extends TestCase
     public function testGetSkuCombos(): void
     {
         $combos = [
-            ['base_sku' => 'VAR-001', 'sku' => 'VAR-001-S', 'sort_order' => 1],
-            ['base_sku' => 'VAR-001', 'sku' => 'VAR-001-M', 'sort_order' => 2],
+            ['stock_id' => 'VAR-001', 'variablename' => 'Size', 'priority' => 1],
+            ['stock_id' => 'VAR-001', 'variablename' => 'Color', 'priority' => 2],
         ];
 
-        $this->mockDb->method('query')->willReturn($combos);
+        $this->mockDb->method('query')
+            ->willReturnCallback(function($sql) use ($combos) {
+                $GLOBALS['__last_woo_sql'] = $sql;
+                return $combos;
+            });
 
         $result = $this->service->getSkuCombos('VAR-001');
 
         $this->assertCount(2, $result);
+        $this->assertStringContainsString("stock_id = 'VAR-001'", $GLOBALS['__last_woo_sql']);
+        $this->assertStringContainsString('ORDER BY priority', $GLOBALS['__last_woo_sql']);
     }
 
     public function testGetSkuFullVariations(): void
     {
         $variations = [
-            ['base_sku' => 'VAR-001', 'sku' => 'VAR-001-S', 'price' => '10.00', 'stock_quantity' => 5],
-            ['base_sku' => 'VAR-001', 'sku' => 'VAR-001-M', 'price' => '12.00', 'stock_quantity' => 3],
+            ['stock_id' => 'VAR-001', 'sku' => 'VAR-001-S', 'description' => 'Size Small', 'inserted_fa' => 1, 'woo_id' => 0],
+            ['stock_id' => 'VAR-001', 'sku' => 'VAR-001-M', 'description' => 'Size Medium', 'inserted_fa' => 1, 'woo_id' => 0],
         ];
 
-        $this->mockDb->method('query')->willReturn($variations);
+        $this->mockDb->method('query')
+            ->willReturnCallback(function($sql) use ($variations) {
+                $GLOBALS['__last_woo_sql'] = $sql;
+                return $variations;
+            });
 
         $result = $this->service->getSkuFullVariations('VAR-001');
 
         $this->assertCount(2, $result);
-        $this->assertEquals('10.00', $result[0]['price']);
+        $this->assertEquals('VAR-001-S', $result[0]['sku']);
+        $this->assertStringContainsString("stock_id = 'VAR-001'", $GLOBALS['__last_woo_sql']);
+        $this->assertStringContainsString('ORDER BY sku', $GLOBALS['__last_woo_sql']);
     }
 
     public function testBuildVariations(): void

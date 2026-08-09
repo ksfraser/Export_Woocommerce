@@ -39,11 +39,14 @@ $config = [
 ];
 
 // Create dependencies (simplified - in production use DI container)
-$restClient = new \Ksfraser\Frontaccounting\Woocommerce\WooRestClient(
+$logger = new \Ksfraser\frontaccounting\Woocommerce\FileLogger(__DIR__ . '/logs/sync.log');
+
+$wooClient = new \Automattic\WooCommerce\Client(
     $config['wc_url'],
     $config['wc_key'],
     $config['wc_secret']
 );
+$restClient = new \Ksfraser\Frontaccounting\Woocommerce\WooRestClient($wooClient, $logger);
 
 $db = new \Ksfraser\Frontaccounting\Woocommerce\MysqliDatabase(
     $config['db_host'],
@@ -52,8 +55,6 @@ $db = new \Ksfraser\Frontaccounting\Woocommerce\MysqliDatabase(
     $config['db_name'],
     $config['db_prefix']
 );
-
-$logger = new \Ksfraser\Frontaccounting\Woocommerce\FileLogger(__DIR__ . '/logs/sync.log');
 
 // Create services
 $productExporter = new ProductExportService($restClient, $logger, $db);

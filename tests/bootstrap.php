@@ -66,8 +66,24 @@ if (!function_exists('get_company_pref')) {
 
 if (!function_exists('get_global_pref')) {
     function get_global_pref($name, $default = '') {
-        // For testing, we'll return the default or a test value
         return $default;
+    }
+}
+
+// WordPress-style filter stubs for hooks.php
+if (!function_exists('apply_filters')) {
+    function apply_filters($tag, $value) {
+        return $value;
+    }
+}
+if (!function_exists('add_filter')) {
+    function add_filter($tag, $function_to_add, $priority = 10, $accepted_args = 1) {
+        return true;
+    }
+}
+if (!function_exists('remove_filter')) {
+    function remove_filter($tag, $function_to_remove, $priority = 10) {
+        return true;
     }
 }
 
@@ -98,6 +114,7 @@ if (file_exists($autoloader)) {
         'Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging',
         'Ksfraser\frontaccounting\Woocommerce\Staging\OrderStaging',
         'Ksfraser\frontaccounting\Woocommerce\Dao\SyncDao',
+        'Ksfraser\frontaccounting\Woocommerce\Dao\StockItemDao',
         'Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher',
         'Ksfraser\frontaccounting\Woocommerce\Workflow\WooSyncStateMachine',
         'Ksfraser\frontaccounting\Woocommerce\Workflow\Status\StagingStatusInterface',

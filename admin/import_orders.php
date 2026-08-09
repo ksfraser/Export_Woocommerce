@@ -3,7 +3,7 @@
  * Import WooCommerce Orders Admin Page
  * 
  * @since 1.0.0
- * @module woocommerce_sync
+ * @module ksf_FA_Woocommerce
  */
 
 $page_security = 'SA_WOOCOMMERCE_IMPORT';

@@ -48,8 +48,8 @@ class ProductExportService
             $data['in_stock'] = $faData['instock'] > 0;
         }
 
-        // Get dimensions and weight from FA Product Attributes
-        $this->addDimensionsAndWeight($stockId, $data);
+        // Get dimensions and weight from FA Product Attributes / stock_master
+        $this->addDimensionsAndWeight($stockId, $faData, $data);
         
         // Get images from product_media table
         $this->addImages($stockId, $data);
@@ -69,21 +69,25 @@ class ProductExportService
     }
     
     /**
-     * Add dimensions and weight from product_dimensions table
+     * Add dimensions and weight from product_dimensions / stock_master
      */
-    private function addDimensionsAndWeight(string $stockId, array &$data): void
+    private function addDimensionsAndWeight(string $stockId, array $faData, array &$data): void
     {
-        if (!$this->tableExists('product_dimensions')) {
-            // Fallback to old weight field
-            if (isset($faData['weight'])) {
-                $data['weight'] = (string)$faData['weight'];
+        // Fallback to stock_master weight if present in source data
+        if (!empty($faData['weight'])) {
+            $data['weight'] = (string)$faData['weight'];
+            if (!empty($faData['weight_unit']) && $faData['weight_unit'] !== 'kg') {
+                $data['weight_unit'] = $faData['weight_unit'];
             }
+        }
+
+        if (!$this->tableExists('product_dimensions')) {
             return;
         }
         
         $result = $this->db->query(sprintf(
             "SELECT * FROM %sproduct_dimensions WHERE stock_id = '%s'",
-            $this->getTableName(''),
+            $this->db->getPrefix(),
             $this->db->escape($stockId)
         ));
         
@@ -121,7 +125,7 @@ class ProductExportService
         
         $result = $this->db->query(sprintf(
             "SELECT * FROM %sproduct_media WHERE stock_id = '%s' ORDER BY sort_order",
-            $this->getTableName(''),
+            $this->db->getPrefix(),
             $this->db->escape($stockId)
         ));
         
@@ -149,7 +153,7 @@ class ProductExportService
         
         $result = $this->db->query(sprintf(
             "SELECT * FROM %sproduct_shipping_attributes WHERE stock_id = '%s'",
-            $this->getTableName(''),
+            $this->db->getPrefix(),
             $this->db->escape($stockId)
         ));
         
@@ -188,7 +192,7 @@ class ProductExportService
         
         $result = $this->db->query(sprintf(
             "SELECT * FROM %sproduct_identifiers WHERE stock_id = '%s'",
-            $this->getTableName(''),
+            $this->db->getPrefix(),
             $this->db->escape($stockId)
         ));
         
@@ -256,6 +260,18 @@ class ProductExportService
         );
         
         return ($result[0]['cnt'] > 0) ? 'variable' : 'simple';
+    }
+
+    /**
+     * Get the WooCommerce product type for a stock item.
+     *
+     * @since 1.0.0
+     * @param string $stockId FA stock_id
+     * @return string 'simple' | 'variable' | 'variation'
+     */
+    public function productType(string $stockId): string
+    {
+        return $this->determineProductType(['stock_id' => $stockId]);
     }
 
     /**

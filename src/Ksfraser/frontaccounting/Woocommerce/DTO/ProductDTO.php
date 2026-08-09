@@ -172,6 +172,7 @@ class ProductDTO
     {
         // Basic identification
         $this->wooId = $data['woo_id'] ?? $data['id'] ?? null;
+        $this->stockId = $data['stock_id'] ?? $data['sku'] ?? '';
         $this->name = $data['name'] ?? '';
         $this->slug = $data['slug'] ?? '';
         $this->permalink = $data['permalink'] ?? '';

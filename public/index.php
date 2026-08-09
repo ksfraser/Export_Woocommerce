@@ -5,7 +5,7 @@
  * Provides the main UI for WooCommerce import/export operations.
  * 
  * @since 1.0.0
- * @module woocommerce_sync
+ * @module ksf_FA_Woocommerce
  */
 
 $page_security = 'SA_WOOCOMMERCE_SYNC';
@@ -169,35 +169,26 @@ function get_woo_dispatcher() {
     global $db_connections;
     $company = user_company();
     
-    $db = new mysqli(
-        $db_connections[$company]['host'],
-        $db_connections[$company]['username'],
-        $db_connections[$company]['password'],
-        $db_connections[$company]['dbname']
+    $config = (new \hooks_ksf_FA_Woocommerce())->get_woo_config();
+    
+    $logger = new \Ksfraser\Frontaccounting\Woocommerce\FileLogger(
+        $GLOBALS['path_to_root'] . '/modules/ksf_FA_Woocommerce/logs/sync.log'
     );
-    $table_prefix = $db_connections[$company]['tbpref'];
     
-    $config = hooks_woocommerce_sync::get_woo_config();
-    
-    $restClient = new \Ksfraser\Frontaccounting\Woocommerce\WooRestClient(
+    $wooClient = new \Automattic\WooCommerce\Client(
         $config['wc_url'],
         $config['wc_key'],
         $config['wc_secret']
     );
+    $restClient = new \Ksfraser\Frontaccounting\Woocommerce\WooRestClient($wooClient, $logger);
     
-    $logger = new \Ksfraser\Frontaccounting\Woocommerce\FileLogger(
-        $GLOBALS['path_to_root'] . '/modules/woocommerce_sync/logs/sync.log'
+    $dbInterface = new \Ksfraser\frontaccounting\Woocommerce\MysqliDatabase(
+        $db_connections[$company]['host'],
+        $db_connections[$company]['username'],
+        $db_connections[$company]['password'],
+        $db_connections[$company]['dbname'],
+        $db_connections[$company]['tbpref']
     );
-    
-    $dbInterface = new class($db, $table_prefix) implements \Ksfraser\Frontaccounting\Woocommerce\DatabaseInterface {
-        private $db;
-        private $prefix;
-        public function __construct($db, $prefix) { $this->db = $db; $this->prefix = $prefix; }
-        public function query(string $sql): array { $r = $this->db->query($sql); if (!$r) return []; $rows = []; while ($row = $r->fetch_assoc()) $rows[] = $row; return $rows; }
-        public function execute(string $sql): bool { return $this->db->query($sql); }
-        public function getPrefix(): string { return $this->prefix; }
-        public function escape(string $value): string { return $this->db->real_escape_string($value); }
-    };
     
     $productExporter = new \Ksfraser\Frontaccounting\Woocommerce\ProductExportService($restClient, $logger, $dbInterface);
     $orderExporter = new \Ksfraser\Frontaccounting\Woocommerce\OrderExporter($restClient, $logger, $dbInterface);
