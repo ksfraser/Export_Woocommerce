@@ -61,6 +61,11 @@ class ProductExportService
         // Get product identifiers (UPC, EAN, etc.)
         $this->addProductIdentifiers($stockId, $data);
 
+        // Get Stage 3 tags, cart rules and related products
+        $this->addTags($stockId, $data);
+        $this->addCartRules($stockId, $data);
+        $this->addRelatedProducts($stockId, $data);
+
         // Handle variable products
         if ($data['type'] === 'variable') {
             $data['attributes'] = $this->getProductAttributes($stockId);
@@ -162,6 +167,136 @@ class ProductExportService
                     'value' => $ship['hs_code']
                 ];
             }
+
+            // Stage 3 shipping class (slug) takes precedence over the
+            // legacy hazardous fallback.
+            if (!empty($ship['shipping_class_id']) && $this->tableExists('product_shipping_classes')) {
+                $class = $this->db->query(sprintf(
+                    "SELECT slug FROM %s WHERE id = %d",
+                    $this->getTableName('product_shipping_classes'),
+                    (int)$ship['shipping_class_id']
+                ));
+                if (!empty($class[0]['slug'])) {
+                    $data['shipping_class'] = $class[0]['slug'];
+                }
+            }
+        }
+    }
+
+    /**
+     * Add product tags from the Stage 3 product_tags / product_tag_assignments
+     * tables. WooCommerce accepts {name} objects and auto-creates the tag if
+     * it does not exist yet.
+     *
+     * @since 1.0.0
+     * @param string $stockId
+     * @param array $data Reference to the WooCommerce payload
+     */
+    private function addTags(string $stockId, array &$data): void
+    {
+        if (!$this->tableExists('product_tags') || !$this->tableExists('product_tag_assignments')) {
+            return;
+        }
+
+        $result = $this->db->query(sprintf(
+            "SELECT t.name, t.slug
+             FROM %s a
+             JOIN %s t ON t.id = a.tag_id
+             WHERE a.stock_id = '%s'
+             ORDER BY t.name",
+            $this->getTableName('product_tag_assignments'),
+            $this->getTableName('product_tags'),
+            $this->db->escape($stockId)
+        ));
+
+        $tags = [];
+        foreach ($result as $tag) {
+            $tags[] = [
+                'name' => $tag['name'] ?? '',
+                'slug' => $tag['slug'] ?? '',
+            ];
+        }
+
+        if (count($tags) > 0) {
+            $data['tags'] = $tags;
+        }
+    }
+
+    /**
+     * Add cart rules from the Stage 3 product_cart_rules table.
+     *
+     * @since 1.0.0
+     * @param string $stockId
+     * @param array $data Reference to the WooCommerce payload
+     */
+    private function addCartRules(string $stockId, array &$data): void
+    {
+        if (!$this->tableExists('product_cart_rules')) {
+            return;
+        }
+
+        $result = $this->db->query(sprintf(
+            "SELECT sold_individually FROM %s WHERE stock_id = '%s'",
+            $this->getTableName('product_cart_rules'),
+            $this->db->escape($stockId)
+        ));
+
+        if (!empty($result[0]) && (int)$result[0]['sold_individually'] === 1) {
+            $data['sold_individually'] = true;
+        }
+    }
+
+    /**
+     * Add upsell/cross-sell related products from the Stage 3
+     * product_related_products table, resolving each related FA stock_id to
+     * its WooCommerce product id via the woo_product_map table. Related
+     * products that have not been exported yet are skipped.
+     *
+     * @since 1.0.0
+     * @param string $stockId
+     * @param array $data Reference to the WooCommerce payload
+     */
+    private function addRelatedProducts(string $stockId, array &$data): void
+    {
+        if (!$this->tableExists('product_related_products')) {
+            return;
+        }
+
+        $result = $this->db->query(sprintf(
+            "SELECT related_stock_id, relation_type
+             FROM %s
+             WHERE stock_id = '%s'
+             ORDER BY relation_type, sort_order",
+            $this->getTableName('product_related_products'),
+            $this->db->escape($stockId)
+        ));
+
+        $upsellIds = [];
+        $crossSellIds = [];
+        foreach ($result as $related) {
+            if (!isset($related['relation_type'])) {
+                continue;
+            }
+            $mapping = $this->db->query(sprintf(
+                "SELECT woo_product_id FROM %s WHERE stock_id = '%s'",
+                $this->getTableName('woo_product_map'),
+                $this->db->escape($related['related_stock_id'])
+            ));
+            if (empty($mapping[0]['woo_product_id'])) {
+                continue;
+            }
+            if ($related['relation_type'] === 'upsell') {
+                $upsellIds[] = (int)$mapping[0]['woo_product_id'];
+            } elseif ($related['relation_type'] === 'cross_sell') {
+                $crossSellIds[] = (int)$mapping[0]['woo_product_id'];
+            }
+        }
+
+        if (count($upsellIds) > 0) {
+            $data['upsell_ids'] = $upsellIds;
+        }
+        if (count($crossSellIds) > 0) {
+            $data['cross_sell_ids'] = $crossSellIds;
         }
     }
     

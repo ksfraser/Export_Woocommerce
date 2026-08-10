@@ -54,6 +54,117 @@ class ProductExportServiceTest extends TestCase
         $this->assertEquals('Test Product', $wooData['name']);
     }
 
+    /**
+     * Route DB query results by SQL substring; unmatched queries return [].
+     */
+    private function stubQuery(array $routes): void
+    {
+        $this->mockDb->method('query')->willReturnCallback(function (string $sql) use ($routes) {
+            foreach ($routes as $needle => $result) {
+                if (strpos($sql, $needle) !== false) {
+                    return $result;
+                }
+            }
+            return [];
+        });
+    }
+
+    public function testBuildProductDataAddsTagsFromStage3(): void
+    {
+        $this->stubQuery([
+            "SHOW TABLES LIKE '0_product_tags'" => [['x' => '0_product_tags']],
+            "SHOW TABLES LIKE '0_product_tag_assignments'" => [['x' => '0_product_tag_assignments']],
+            'JOIN 0_product_tags' => [
+                ['name' => 'Craft', 'slug' => 'craft'],
+                ['name' => 'Organic', 'slug' => 'organic'],
+            ],
+        ]);
+
+        $wooData = $this->service->buildProductData(['stock_id' => 'SKU-001', 'description' => 'Test']);
+
+        $this->assertEquals([
+            ['name' => 'Craft', 'slug' => 'craft'],
+            ['name' => 'Organic', 'slug' => 'organic'],
+        ], $wooData['tags']);
+    }
+
+    public function testBuildProductDataAddsShippingClassSlugOverHazardous(): void
+    {
+        $this->stubQuery([
+            "SHOW TABLES LIKE '0_product_shipping_attributes'" => [['x' => '0_product_shipping_attributes']],
+            '0_product_shipping_attributes WHERE stock_id' => [
+                ['is_hazardous' => '1', 'hs_code' => null, 'shipping_class_id' => '3'],
+            ],
+            "SHOW TABLES LIKE '0_product_shipping_classes'" => [['x' => '0_product_shipping_classes']],
+            '0_product_shipping_classes WHERE id' => [['slug' => 'refrigerated']],
+        ]);
+
+        $wooData = $this->service->buildProductData(['stock_id' => 'SKU-001', 'description' => 'Test']);
+
+        $this->assertEquals('refrigerated', $wooData['shipping_class']);
+    }
+
+    public function testBuildProductDataAddsSoldIndividuallyFromCartRules(): void
+    {
+        $this->stubQuery([
+            "SHOW TABLES LIKE '0_product_cart_rules'" => [['x' => '0_product_cart_rules']],
+            '0_product_cart_rules WHERE stock_id' => [['stock_id' => 'SKU-001', 'sold_individually' => '1']],
+        ]);
+
+        $wooData = $this->service->buildProductData(['stock_id' => 'SKU-001', 'description' => 'Test']);
+
+        $this->assertTrue($wooData['sold_individually']);
+    }
+
+    public function testBuildProductDataResolvesRelatedProductsViaWooProductMap(): void
+    {
+        $this->stubQuery([
+            "SHOW TABLES LIKE '0_product_related_products'" => [['x' => '0_product_related_products']],
+            'FROM 0_product_related_products' => [
+                ['related_stock_id' => 'REL-001', 'relation_type' => 'upsell', 'sort_order' => '1'],
+                ['related_stock_id' => 'REL-002', 'relation_type' => 'cross_sell', 'sort_order' => '1'],
+            ],
+            "woo_product_map WHERE stock_id = 'REL-001'" => [['woo_product_id' => 200]],
+            "woo_product_map WHERE stock_id = 'REL-002'" => [['woo_product_id' => 300]],
+        ]);
+
+        $wooData = $this->service->buildProductData(['stock_id' => 'SKU-001', 'description' => 'Test']);
+
+        $this->assertEquals([200], $wooData['upsell_ids']);
+        $this->assertEquals([300], $wooData['cross_sell_ids']);
+    }
+
+    public function testBuildProductDataSkipsRelatedProductsWithoutWooMapping(): void
+    {
+        $this->stubQuery([
+            "SHOW TABLES LIKE '0_product_related_products'" => [['x' => '0_product_related_products']],
+            'FROM 0_product_related_products' => [
+                ['related_stock_id' => 'REL-003', 'relation_type' => 'upsell', 'sort_order' => '1'],
+            ],
+            "woo_product_map WHERE stock_id = 'REL-003'" => [],
+        ]);
+
+        $wooData = $this->service->buildProductData(['stock_id' => 'SKU-001', 'description' => 'Test']);
+
+        $this->assertArrayNotHasKey('upsell_ids', $wooData);
+        $this->assertArrayNotHasKey('cross_sell_ids', $wooData);
+    }
+
+    public function testBuildProductDataLeavesStage3KeysAbsentWhenTablesMissing(): void
+    {
+        $this->stubQuery([
+            'SHOW TABLES' => [],
+        ]);
+
+        $wooData = $this->service->buildProductData(['stock_id' => 'SKU-001', 'description' => 'Test']);
+
+        $this->assertArrayNotHasKey('tags', $wooData);
+        $this->assertArrayNotHasKey('shipping_class', $wooData);
+        $this->assertArrayNotHasKey('sold_individually', $wooData);
+        $this->assertArrayNotHasKey('upsell_ids', $wooData);
+        $this->assertArrayNotHasKey('cross_sell_ids', $wooData);
+    }
+
     public function testExportProductCreatesNewWhenNoWooId(): void
     {
         $this->mockRestClient->method('post')->willReturn(['id' => 123]);
