@@ -41,6 +41,11 @@ class ProductDataBuilder
         $this->addShippingAttributes($stockId, $data);
         $this->addProductIdentifiers($stockId, $data);
 
+        $this->addTags($stockId, $data);
+        $this->addCartRules($stockId, $data);
+        $this->addRelatedProducts($stockId, $data);
+        $this->addCategories($stockId, $data);
+
         if (($data['type'] ?? 'simple') === 'variable') {
             $data['attributes'] = $this->getProductAttributes($stockId);
         }
@@ -155,6 +160,136 @@ class ProductDataBuilder
                     'value' => $ship['hs_code'],
                 ];
             }
+
+            if (!empty($ship['shipping_class_id']) && $this->tableExists('product_shipping_classes')) {
+                $class = $this->db->query(sprintf(
+                    "SELECT slug FROM %s WHERE id = %d",
+                    $this->getTableName('product_shipping_classes'),
+                    (int)$ship['shipping_class_id']
+                ));
+                if (!empty($class[0]['slug'])) {
+                    $data['shipping_class'] = $class[0]['slug'];
+                }
+            }
+        }
+    }
+
+    private function addTags(string $stockId, array &$data): void
+    {
+        if (!$this->tableExists('product_tags') || !$this->tableExists('product_tag_assignments')) {
+            return;
+        }
+
+        $result = $this->db->query(sprintf(
+            "SELECT t.name, t.slug
+             FROM %s a
+             JOIN %s t ON t.id = a.tag_id
+             WHERE a.stock_id = '%s'
+             ORDER BY t.name",
+            $this->getTableName('product_tag_assignments'),
+            $this->getTableName('product_tags'),
+            $this->db->escape($stockId)
+        ));
+
+        $tags = [];
+        foreach ($result as $tag) {
+            $tags[] = [
+                'name' => $tag['name'] ?? '',
+                'slug' => $tag['slug'] ?? '',
+            ];
+        }
+
+        if (count($tags) > 0) {
+            $data['tags'] = $tags;
+        }
+    }
+
+    private function addCartRules(string $stockId, array &$data): void
+    {
+        if (!$this->tableExists('product_cart_rules')) {
+            return;
+        }
+
+        $result = $this->db->query(sprintf(
+            "SELECT sold_individually FROM %s WHERE stock_id = '%s'",
+            $this->getTableName('product_cart_rules'),
+            $this->db->escape($stockId)
+        ));
+
+        if (!empty($result[0]) && (int)$result[0]['sold_individually'] === 1) {
+            $data['sold_individually'] = true;
+        }
+    }
+
+    private function addRelatedProducts(string $stockId, array &$data): void
+    {
+        if (!$this->tableExists('product_related_products')) {
+            return;
+        }
+
+        $result = $this->db->query(sprintf(
+            "SELECT related_stock_id, relation_type
+             FROM %s
+             WHERE stock_id = '%s'
+             ORDER BY relation_type, sort_order",
+            $this->getTableName('product_related_products'),
+            $this->db->escape($stockId)
+        ));
+
+        $upsellIds = [];
+        $crossSellIds = [];
+        foreach ($result as $related) {
+            if (!isset($related['relation_type'])) {
+                continue;
+            }
+            $mapping = $this->db->query(sprintf(
+                "SELECT woo_product_id FROM %s WHERE stock_id = '%s'",
+                $this->getTableName('woo_product_map'),
+                $this->db->escape($related['related_stock_id'])
+            ));
+            if (empty($mapping[0]['woo_product_id'])) {
+                continue;
+            }
+            if ($related['relation_type'] === 'upsell') {
+                $upsellIds[] = (int)$mapping[0]['woo_product_id'];
+            } elseif ($related['relation_type'] === 'cross_sell') {
+                $crossSellIds[] = (int)$mapping[0]['woo_product_id'];
+            }
+        }
+
+        if (count($upsellIds) > 0) {
+            $data['upsell_ids'] = $upsellIds;
+        }
+        if (count($crossSellIds) > 0) {
+            $data['cross_sell_ids'] = $crossSellIds;
+        }
+    }
+
+    private function addCategories(string $stockId, array &$data): void
+    {
+        if (!$this->tableExists('woo_category_map')) {
+            return;
+        }
+
+        $result = $this->db->query(sprintf(
+            "SELECT category_id FROM %s WHERE stock_id = '%s'",
+            $this->getTableName('stock_master'),
+            $this->db->escape($stockId)
+        ));
+
+        $categoryId = (int)($result[0]['category_id'] ?? 0);
+        if ($categoryId <= 0) {
+            return;
+        }
+
+        $mapping = $this->db->query(sprintf(
+            "SELECT woo_category_id FROM %s WHERE fa_category_id = %d",
+            $this->getTableName('woo_category_map'),
+            $categoryId
+        ));
+
+        if (!empty($mapping[0]['woo_category_id'])) {
+            $data['categories'] = [['id' => (int)$mapping[0]['woo_category_id']]];
         }
     }
 

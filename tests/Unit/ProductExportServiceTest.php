@@ -163,6 +163,33 @@ class ProductExportServiceTest extends TestCase
         $this->assertArrayNotHasKey('sold_individually', $wooData);
         $this->assertArrayNotHasKey('upsell_ids', $wooData);
         $this->assertArrayNotHasKey('cross_sell_ids', $wooData);
+        $this->assertArrayNotHasKey('categories', $wooData);
+    }
+
+    public function testBuildProductDataAddsCategoriesFromMapping(): void
+    {
+        $this->stubQuery([
+            "SHOW TABLES LIKE '0_woo_category_map'" => [['x' => '0_woo_category_map']],
+            '0_stock_master WHERE stock_id' => [['category_id' => 5]],
+            'woo_category_map WHERE fa_category_id' => [['woo_category_id' => 77]],
+        ]);
+
+        $wooData = $this->service->buildProductData(['stock_id' => 'SKU-001', 'description' => 'Test']);
+
+        $this->assertEquals([['id' => 77]], $wooData['categories']);
+    }
+
+    public function testBuildProductDataOmitsCategoriesWithoutMapping(): void
+    {
+        $this->stubQuery([
+            "SHOW TABLES LIKE '0_woo_category_map'" => [['x' => '0_woo_category_map']],
+            '0_stock_master WHERE stock_id' => [['category_id' => 5]],
+            'woo_category_map WHERE fa_category_id' => [],
+        ]);
+
+        $wooData = $this->service->buildProductData(['stock_id' => 'SKU-001', 'description' => 'Test']);
+
+        $this->assertArrayNotHasKey('categories', $wooData);
     }
 
     public function testExportProductCreatesNewWhenNoWooId(): void

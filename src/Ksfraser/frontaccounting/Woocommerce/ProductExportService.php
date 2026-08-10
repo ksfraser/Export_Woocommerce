@@ -65,6 +65,7 @@ class ProductExportService
         $this->addTags($stockId, $data);
         $this->addCartRules($stockId, $data);
         $this->addRelatedProducts($stockId, $data);
+        $this->addCategories($stockId, $data);
 
         // Handle variable products
         if ($data['type'] === 'variable') {
@@ -297,6 +298,43 @@ class ProductExportService
         }
         if (count($crossSellIds) > 0) {
             $data['cross_sell_ids'] = $crossSellIds;
+        }
+    }
+
+    /**
+     * Add the mapped WooCommerce category for the item, resolved through the
+     * FA stock_master.category_id and the woo_category_map table. Omits the
+     * categories key entirely when no mapping exists.
+     *
+     * @since 1.0.0
+     * @param string $stockId
+     * @param array $data Reference to the WooCommerce payload
+     */
+    private function addCategories(string $stockId, array &$data): void
+    {
+        if (!$this->tableExists('woo_category_map')) {
+            return;
+        }
+
+        $result = $this->db->query(sprintf(
+            "SELECT category_id FROM %s WHERE stock_id = '%s'",
+            $this->getTableName('stock_master'),
+            $this->db->escape($stockId)
+        ));
+
+        $categoryId = (int)($result[0]['category_id'] ?? 0);
+        if ($categoryId <= 0) {
+            return;
+        }
+
+        $mapping = $this->db->query(sprintf(
+            "SELECT woo_category_id FROM %s WHERE fa_category_id = %d",
+            $this->getTableName('woo_category_map'),
+            $categoryId
+        ));
+
+        if (!empty($mapping[0]['woo_category_id'])) {
+            $data['categories'] = [['id' => (int)$mapping[0]['woo_category_id']]];
         }
     }
     

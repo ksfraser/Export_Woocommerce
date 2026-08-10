@@ -270,4 +270,131 @@ class ProductDataBuilderTest extends TestCase
         $result = $this->builder->build($faData);
         $this->assertEquals('3.5', $result['weight']);
     }
+
+    public function testBuildWithTagsFromStage3(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(fn($sql) => match(true) {
+                strpos($sql, 'SHOW TABLES') !== false && strpos($sql, 'product_tags') !== false => [['table' => '0_product_tags']],
+                strpos($sql, 'SHOW TABLES') !== false && strpos($sql, 'product_tag_assignments') !== false => [['table' => '0_product_tag_assignments']],
+                strpos($sql, 'JOIN 0_product_tags') !== false => [
+                    ['name' => 'Craft', 'slug' => 'craft'],
+                    ['name' => 'Organic', 'slug' => 'organic'],
+                ],
+                default => [],
+            });
+
+        $result = $this->builder->build([
+            'stock_id' => 'TAG-001',
+            'description' => 'Tagged Product',
+            'price' => '10.00',
+        ]);
+
+        $this->assertEquals([
+            ['name' => 'Craft', 'slug' => 'craft'],
+            ['name' => 'Organic', 'slug' => 'organic'],
+        ], $result['tags']);
+    }
+
+    public function testBuildWithShippingClassSlugOverHazardous(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(fn($sql) => match(true) {
+                strpos($sql, 'SHOW TABLES') !== false && strpos($sql, 'product_shipping_attributes') !== false => [['table' => '0_product_shipping_attributes']],
+                strpos($sql, 'product_shipping_attributes WHERE stock_id') !== false => [
+                    ['is_hazardous' => 1, 'hs_code' => null, 'shipping_class_id' => 3],
+                ],
+                strpos($sql, 'SHOW TABLES') !== false && strpos($sql, 'product_shipping_classes') !== false => [['table' => '0_product_shipping_classes']],
+                strpos($sql, 'product_shipping_classes WHERE id') !== false => [['slug' => 'refrigerated']],
+                default => [],
+            });
+
+        $result = $this->builder->build([
+            'stock_id' => 'SHIP-002',
+            'description' => 'Refrigerated Product',
+            'price' => '99.00',
+        ]);
+
+        $this->assertEquals('refrigerated', $result['shipping_class']);
+    }
+
+    public function testBuildWithSoldIndividuallyFromCartRules(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(fn($sql) => match(true) {
+                strpos($sql, 'SHOW TABLES') !== false && strpos($sql, 'product_cart_rules') !== false => [['table' => '0_product_cart_rules']],
+                strpos($sql, 'product_cart_rules WHERE stock_id') !== false => [['sold_individually' => 1]],
+                default => [],
+            });
+
+        $result = $this->builder->build([
+            'stock_id' => 'CR-001',
+            'description' => 'One Per Order',
+            'price' => '8.00',
+        ]);
+
+        $this->assertTrue($result['sold_individually']);
+    }
+
+    public function testBuildWithRelatedProductsFromWooProductMap(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(fn($sql) => match(true) {
+                strpos($sql, 'SHOW TABLES') !== false && strpos($sql, 'product_related_products') !== false => [['table' => '0_product_related_products']],
+                strpos($sql, 'FROM 0_product_related_products') !== false => [
+                    ['related_stock_id' => 'REL-001', 'relation_type' => 'upsell', 'sort_order' => 1],
+                    ['related_stock_id' => 'REL-002', 'relation_type' => 'cross_sell', 'sort_order' => 1],
+                ],
+                strpos($sql, "woo_product_map WHERE stock_id = 'REL-001'") !== false => [['woo_product_id' => 200]],
+                strpos($sql, "woo_product_map WHERE stock_id = 'REL-002'") !== false => [['woo_product_id' => 300]],
+                default => [],
+            });
+
+        $result = $this->builder->build([
+            'stock_id' => 'RL-001',
+            'description' => 'With Related',
+            'price' => '12.00',
+        ]);
+
+        $this->assertEquals([200], $result['upsell_ids']);
+        $this->assertEquals([300], $result['cross_sell_ids']);
+    }
+
+    public function testBuildWithCategoriesFromMapping(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(fn($sql) => match(true) {
+                strpos($sql, 'SHOW TABLES') !== false && strpos($sql, 'woo_category_map') !== false => [['table' => '0_woo_category_map']],
+                strpos($sql, '0_stock_master WHERE stock_id') !== false => [['category_id' => 5]],
+                strpos($sql, 'woo_category_map WHERE fa_category_id') !== false => [['woo_category_id' => 77]],
+                default => [],
+            });
+
+        $result = $this->builder->build([
+            'stock_id' => 'CAT-001',
+            'description' => 'Categorized',
+            'price' => '5.00',
+        ]);
+
+        $this->assertEquals([['id' => 77]], $result['categories']);
+    }
+
+    public function testBuildOmitsCategoriesWithoutMapping(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(fn($sql) => match(true) {
+                strpos($sql, 'SHOW TABLES') !== false && strpos($sql, 'woo_category_map') !== false => [['table' => '0_woo_category_map']],
+                strpos($sql, '0_stock_master WHERE stock_id') !== false => [['category_id' => 5]],
+                strpos($sql, 'woo_category_map WHERE fa_category_id') !== false => [],
+                default => [],
+            });
+
+        $result = $this->builder->build([
+            'stock_id' => 'CAT-002',
+            'description' => 'Unmapped',
+            'price' => '6.00',
+        ]);
+
+        $this->assertArrayNotHasKey('categories', $result);
+    }
 }
