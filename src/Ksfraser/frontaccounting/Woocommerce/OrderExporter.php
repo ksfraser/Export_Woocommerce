@@ -216,7 +216,64 @@ class OrderExporter
         // Map WooCommerce order to FA
         $this->mapWooOrderToFA($order['id'], $result['fa_order_no'] ?? 0);
         
+        if (!empty($result['success'])) {
+            $this->broadcastOrderImported([
+                'source_order_id' => (string)($order['id'] ?? ''),
+                'fa_order_no' => (int)($result['fa_order_no'] ?? 0),
+                'fa_trans_type' => defined('ST_SALESINVOICE') ? ST_SALESINVOICE : 10,
+                'customer_id' => (int)$faCustomerId,
+                'order_total' => (float)($order['total'] ?? 0),
+                'order_date' => $this->extractOrderDate($order),
+                'currency' => (string)($order['currency'] ?? ''),
+            ]);
+        }
+        
         return $result['success'] ?? false;
+    }
+
+    /**
+     * Broadcasts an order_imported event to other ksf modules.
+     *
+     * HRM (sales commissions) and ProjectManagement (project revenue)
+     * listen for this event via hook_invoke_all. The call is guarded so
+     * the module still works when the listener modules are not installed.
+     *
+     * @param array $payload Event payload
+     * @return void
+     */
+    private function broadcastOrderImported(array $payload): void
+    {
+        if (!function_exists('hook_invoke_all')) {
+            return;
+        }
+
+        $data = array_merge([
+            'source' => 'woocommerce',
+            'source_order_id' => '',
+            'fa_order_no' => 0,
+            'fa_trans_type' => defined('ST_SALESINVOICE') ? ST_SALESINVOICE : 10,
+            'customer_id' => 0,
+            'order_total' => 0.0,
+            'order_date' => date('Y-m-d'),
+            'currency' => '',
+        ], $payload);
+
+        hook_invoke_all('order_imported', $data);
+    }
+
+    /**
+     * Extract the Y-m-d date portion from a WooCommerce order.
+     *
+     * @param array $order WooCommerce order
+     * @return string Date in Y-m-d format
+     */
+    private function extractOrderDate(array $order): string
+    {
+        $created = (string)($order['date_created'] ?? '');
+        if ($created === '') {
+            return date('Y-m-d');
+        }
+        return substr($created, 0, 10);
     }
 
     /**
