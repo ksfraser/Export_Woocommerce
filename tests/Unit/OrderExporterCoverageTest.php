@@ -241,7 +241,7 @@ class OrderExporterCoverageTest extends TestCase
         $order = ['billing' => ['email' => 'john@example.com']];
 
         $this->mockDb->method('query')
-            ->willReturn([['customer_id' => 50]]);
+            ->willReturn([['debtor_no' => 50]]);
 
         $result = $this->exporter->importCustomerFromOrder($order);
 
@@ -341,7 +341,7 @@ class OrderExporterCoverageTest extends TestCase
     public function testFindOrCreateFACustomerExisting(): void
     {
         $this->mockDb->method('query')
-            ->willReturn([['customer_id' => 50]]);
+            ->willReturn([['debtor_no' => 50]]);
 
         $order = [
             'id' => 123,
@@ -353,8 +353,8 @@ class OrderExporterCoverageTest extends TestCase
 
         $customerData = $this->exporter->extractCustomerData($order);
 
-        $existing = $this->mockDb->query("SELECT customer_id FROM 0_customers WHERE email = 'john@example.com'");
-        $this->assertEquals(50, $existing[0]['customer_id']);
+        $existing = $this->mockDb->query("SELECT debtor_no FROM 0_debtors_master WHERE email = 'john@example.com'");
+        $this->assertEquals(50, $existing[0]['debtor_no']);
     }
 
     public function testCreateOrderReturnsNullOnException(): void

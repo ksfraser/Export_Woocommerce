@@ -30,7 +30,7 @@ class CustomerStaging
         }
         $data = [];
         $params['request'] = 'staging:' . $action;
-        hook_invoke(self::HOOK_MODULE, 'respondToCapabilityRequest', $params, $data);
+        hook_invoke(self::HOOK_MODULE, 'respondToCapabilityRequest', $data, $params);
         if (!empty($data['success']) && isset($data['result'])) {
             return is_array($data['result']) ? $data['result'] : ['id' => $data['result']];
         }

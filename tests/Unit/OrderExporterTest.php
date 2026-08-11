@@ -162,7 +162,7 @@ class OrderExporterTest extends TestCase
         
         $this->mockDb->method('query')
             ->willReturn([]); // No existing customer
-        
+
         $result = $this->exporter->importCustomerFromOrder($orderWithCustomer);
         
         $this->assertTrue($result['imported']);
@@ -196,5 +196,101 @@ class OrderExporterTest extends TestCase
         
         $this->assertTrue($result['success']);
         $this->assertEquals(123, $result['woo_order_id']);
+    }
+
+    public function testCustomerDedupQueriesDebtorsMaster(): void
+    {
+        // Arrange
+        $orderWithCustomer = [
+            'id' => 123,
+            'customer_id' => 456,
+            'billing' => [
+                'first_name' => 'John',
+                'last_name' => 'Doe',
+                'email' => 'john@example.com',
+                'phone' => '555-1234'
+            ]
+        ];
+        
+        // Existing FA debtor found via debtors_master
+        $this->mockDb->method('query')
+            ->willReturnCallback(function ($sql) {
+                if (strpos($sql, 'debtors_master') !== false) {
+                    return [['debtor_no' => 77, 'name' => 'John Doe', 'email' => 'john@example.com']];
+                }
+                return [];
+            });
+        
+        $executed = [];
+        $this->mockDb->method('execute')
+            ->willReturnCallback(function ($sql) use (&$executed) {
+                $executed[] = $sql;
+                return true;
+            });
+        
+        // Act
+        $result = $this->exporter->importCustomerFromOrder($orderWithCustomer);
+        
+        // Assert
+        $this->assertTrue($result['imported']);
+        $this->assertTrue($result['updated']);
+        $this->assertEquals(77, $result['fa_customer_id']);
+        $this->assertStringContainsString('debtors_master', $executed[0]);
+    }
+
+    public function testOrderDedupQueriesWooOrderMapping(): void
+    {
+        // Arrange
+        $orders = [
+            ['id' => 1, 'number' => 'WC-001']
+        ];
+        
+        $this->mockRestClient->method('get')
+            ->willReturn($orders);
+        
+        // Existing mapping in woo_order_mapping -> skip import
+        $this->mockDb->method('query')
+            ->willReturnCallback(function ($sql) {
+                if (strpos($sql, 'woo_order_mapping') !== false) {
+                    return [['id' => 1]];
+                }
+                return [];
+            });
+        
+        // Act
+        $result = $this->exporter->importOrdersToFA();
+        
+        // Assert
+        $this->assertEquals(0, $result['imported']);
+        $this->assertEquals(1, $result['total']);
+    }
+
+    public function testImportOrdersFetchesAllPages(): void
+    {
+        // Arrange
+        $pageOne = [];
+        for ($i = 1; $i <= 100; $i++) {
+            $pageOne[] = ['id' => $i, 'number' => 'WC-' . $i, 'status' => 'pending'];
+        }
+        
+        $requestedPages = [];
+        $this->mockRestClient->method('get')
+            ->willReturnCallback(function ($endpoint, $params = []) use (&$requestedPages, $pageOne) {
+                $requestedPages[] = $params['page'] ?? 1;
+                if (($params['page'] ?? 1) === 1) {
+                    return $pageOne;
+                }
+                return []; // Page 2 is empty -> fetch stops
+            });
+        
+        $this->mockDb->method('query')->willReturn([]);
+        
+        // Act
+        $result = $this->exporter->importOrdersToFA();
+        
+        // Assert
+        $this->assertEquals(100, $result['imported']);
+        $this->assertEquals(100, $result['total']);
+        $this->assertContains(2, $requestedPages, 'Second page should be requested');
     }
 }

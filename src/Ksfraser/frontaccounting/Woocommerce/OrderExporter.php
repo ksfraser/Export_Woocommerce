@@ -129,7 +129,7 @@ class OrderExporter
     {
         $this->logger->info('Starting order import to FA');
         
-        $orders = $this->getOrders($filters);
+        $orders = $this->fetchAllOrders($filters);
         $imported = 0;
         
         foreach ($orders as $order) {
@@ -145,6 +145,43 @@ class OrderExporter
     }
 
     /**
+     * Fetch all orders from WooCommerce, following pagination.
+     * 
+     * WooCommerce REST API caps per_page at 100, so the fetch loops
+     * through pages until a page returns fewer records than requested
+     * (or an empty page is returned).
+     * 
+     * @since 1.0.0
+     * @param array $filters
+     * @return array All orders across pages
+     */
+    private function fetchAllOrders(array $filters): array
+    {
+        $perPage = 100;
+        $maxPages = 100;
+        $orders = [];
+        
+        for ($page = 1; $page <= $maxPages; $page++) {
+            $pageOrders = $this->getOrders(
+                array_merge($filters, ['per_page' => $perPage, 'page' => $page])
+            );
+            
+            if (empty($pageOrders)) {
+                break;
+            }
+            
+            $orders = array_merge($orders, $pageOrders);
+            
+            // Last page has fewer records than requested
+            if (count($pageOrders) < $perPage) {
+                break;
+            }
+        }
+        
+        return $orders;
+    }
+
+    /**
      * Import single order to FrontAccounting
      * 
      * @since 1.0.0
@@ -155,11 +192,11 @@ class OrderExporter
     {
         $this->logger->info(sprintf('Importing order %s to FA', $order['number'] ?? 'unknown'));
         
-        // Check if order already imported
+        // Check if order already imported (mapping table written by mapWooOrderToFA)
         $existing = $this->db->query(
             sprintf(
                 "SELECT * FROM %s WHERE woo_order_id = %d",
-                $this->getTableName('woo_orders'),
+                $this->getTableName('woo_order_mapping'),
                 $order['id']
             )
         );
@@ -231,19 +268,19 @@ class OrderExporter
         // Check if customer already exists in FA
         $existing = $this->db->query(
             sprintf(
-                "SELECT * FROM %s WHERE email = '%s'",
-                $this->getTableName('customers'),
+                "SELECT * FROM %sdebtors_master WHERE email = '%s'",
+                $this->db->getPrefix(),
                 $this->db->escape($customerData['email'])
             )
         );
         
         if (!empty($existing)) {
             // Update existing customer
-            $this->updateFACustomer($existing[0]['customer_id'], $customerData);
+            $this->updateFACustomer($existing[0]['debtor_no'], $customerData);
             return [
                 'imported' => true,
                 'updated' => true,
-                'fa_customer_id' => $existing[0]['customer_id']
+                'fa_customer_id' => $existing[0]['debtor_no']
             ];
         }
         
@@ -302,14 +339,14 @@ class OrderExporter
         
         $existing = $this->db->query(
             sprintf(
-                "SELECT customer_id FROM %s WHERE email = '%s'",
-                $this->getTableName('customers'),
+                "SELECT debtor_no FROM %sdebtors_master WHERE email = '%s'",
+                $this->db->getPrefix(),
                 $this->db->escape($customerData['email'])
             )
         );
         
         if (!empty($existing)) {
-            return (int)$existing[0]['customer_id'];
+            return (int)$existing[0]['debtor_no'];
         }
         
         return $this->createFACustomer($customerData);
@@ -332,8 +369,8 @@ class OrderExporter
         }
         
         $this->db->execute(sprintf(
-            "INSERT INTO %sdebtors_master (name, email, curr_code, tax_group_id)
-             VALUES ('%s', '%s', 'USD', 1)",
+            "INSERT INTO %sdebtors_master (name, email, curr_code)
+             VALUES ('%s', '%s', 'USD')",
             $this->db->getPrefix(),
             $this->db->escape($name),
             $this->db->escape($customerData['email'])
