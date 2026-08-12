@@ -47,7 +47,7 @@ class hooks_ksf_FA_Woocommerce extends hooks
     public function __construct()
     {
         $this->module_name = 'ksf_FA_Woocommerce';
-        $this->module_path = apply_filters('ksf_FA_Woocommerce_module_path', dirname(__FILE__));
+        $this->module_path = dirname(__FILE__);
     }
 
     public function module_path()
