@@ -341,7 +341,7 @@ class hooks_ksf_FA_Woocommerce extends hooks
         $config = $this->get_woo_config();
         
         // Create services
-        $logger = new \Ksfraser\Frontaccounting\Woocommerce\FileLogger(
+        $logger = new \Ksfraser\frontaccounting\Woocommerce\FileLogger(
             $this->module_path . '/logs/sync.log'
         );
         
@@ -354,29 +354,29 @@ class hooks_ksf_FA_Woocommerce extends hooks
         
         $dbInterface = new \Ksfraser\frontaccounting\Woocommerce\MysqliDatabase(
             $db_connections[$company]['host'],
-            $db_connections[$company]['username'],
-            $db_connections[$company]['password'],
+            $db_connections[$company]['dbuser'],
+            $db_connections[$company]['dbpassword'],
             $db_connections[$company]['dbname'],
             $db_connections[$company]['tbpref']
         );
         
-        $productExporter = new \Ksfraser\Frontaccounting\Woocommerce\ProductExportService(
+        $productExporter = new \Ksfraser\frontaccounting\Woocommerce\ProductExportService(
             $restClient, $logger, $dbInterface
         );
-        $orderExporter = new \Ksfraser\Frontaccounting\Woocommerce\OrderExporter(
+        $orderExporter = new \Ksfraser\frontaccounting\Woocommerce\OrderExporter(
             $restClient, $logger, $dbInterface
         );
-        $customerExporter = new \Ksfraser\Frontaccounting\Woocommerce\CustomerExporter(
+        $customerExporter = new \Ksfraser\frontaccounting\Woocommerce\CustomerExporter(
             $restClient, $logger, $dbInterface
         );
-        $categoryExporter = new \Ksfraser\Frontaccounting\Woocommerce\CategoryExporter(
+        $categoryExporter = new \Ksfraser\frontaccounting\Woocommerce\CategoryExporter(
             $restClient, $logger, $dbInterface
         );
-        $customerStaging = new \Ksfraser\Frontaccounting\Woocommerce\Staging\CustomerStaging(
+        $customerStaging = new \Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging(
             $dbInterface, $logger
         );
         
-        $dispatcher = new \Ksfraser\Frontaccounting\Woocommerce\UI\ImportExportDispatcher(
+        $dispatcher = new \Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher(
             $productExporter,
             $orderExporter,
             $customerExporter,

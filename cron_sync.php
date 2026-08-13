@@ -18,12 +18,12 @@
 // Bootstrap
 require_once __DIR__ . '/vendor/autoload.php';
 
-use Ksfraser\Frontaccounting\Woocommerce\ProductExportService;
-use Ksfraser\Frontaccounting\Woocommerce\OrderExporter;
-use Ksfraser\Frontaccounting\Woocommerce\CustomerExporter;
-use Ksfraser\Frontaccounting\Woocommerce\CategoryExporter;
-use Ksfraser\Frontaccounting\Woocommerce\Staging\CustomerStaging;
-use Ksfraser\Frontaccounting\Woocommerce\UI\ImportExportDispatcher;
+use Ksfraser\frontaccounting\Woocommerce\ProductExportService;
+use Ksfraser\frontaccounting\Woocommerce\OrderExporter;
+use Ksfraser\frontaccounting\Woocommerce\CustomerExporter;
+use Ksfraser\frontaccounting\Woocommerce\CategoryExporter;
+use Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging;
+use Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher;
 
 // Configuration
 $config = [
@@ -45,9 +45,9 @@ $wooClient = new \Automattic\WooCommerce\Client(
     $config['wc_key'],
     $config['wc_secret']
 );
-$restClient = new \Ksfraser\Frontaccounting\Woocommerce\WooRestClient($wooClient, $logger);
+$restClient = new \Ksfraser\frontaccounting\Woocommerce\WooRestClient($wooClient, $logger);
 
-$db = new \Ksfraser\Frontaccounting\Woocommerce\MysqliDatabase(
+$db = new \Ksfraser\frontaccounting\Woocommerce\MysqliDatabase(
     $config['db_host'],
     $config['db_user'],
     $config['db_pass'],
