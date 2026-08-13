@@ -40,6 +40,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import'])) {
     }
 }
 
+// Handle staging action
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['stage'])) {
+    $limit = (int)($_POST['limit'] ?? 10);
+    $services = woo_services();
+    try {
+        $result = $services['dispatcher']->dispatch('stage_orders', ['limit' => $limit]);
+        if (isset($result['error'])) {
+            display_error(_('Staging failed: ') . $result['error']);
+        } else {
+            $message = sprintf('Staged %d orders for review. Total fetched: %d',
+                $result['staged'] ?? 0,
+                $result['total'] ?? 0
+            );
+        }
+    } catch (\Exception $e) {
+        display_error(_('Staging failed: ') . $e->getMessage());
+    }
+}
+
 // Get recent orders
 $recentOrders = array();
 try {
@@ -66,6 +85,11 @@ try {
                 <td>
                     <button type="submit" name="import" class="button">
                         <?php echo _('Import Orders'); ?>
+                    </button>
+                </td>
+                <td>
+                    <button type="submit" name="stage" class="button">
+                        <?php echo _('Stage Orders for Review'); ?>
                     </button>
                 </td>
             </tr>

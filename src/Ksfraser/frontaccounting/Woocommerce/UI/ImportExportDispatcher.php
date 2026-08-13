@@ -7,6 +7,7 @@ use Ksfraser\frontaccounting\Woocommerce\CustomerExporter;
 use Ksfraser\frontaccounting\Woocommerce\CategoryExporter;
 use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
 use Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging;
+use Ksfraser\frontaccounting\Woocommerce\Staging\OrderStaging;
 
 /**
  * Import/Export Dispatcher UI
@@ -22,6 +23,7 @@ class ImportExportDispatcher
     public const ACTION_EXPORT_CATEGORIES = 'export_categories';
     public const ACTION_EXPORT_CUSTOMERS = 'export_customers';
     public const ACTION_IMPORT_ORDERS = 'import_orders';
+    public const ACTION_STAGE_ORDERS = 'stage_orders';
     public const ACTION_IMPORT_CUSTOMERS = 'import_customers';
     public const ACTION_SYNC_ALL = 'sync_all';
 
@@ -30,6 +32,7 @@ class ImportExportDispatcher
     private $customerExporter;
     private $categoryExporter;
     private $customerStaging;
+    private $orderStaging;
     private $logger;
 
     public function __construct(
@@ -38,7 +41,8 @@ class ImportExportDispatcher
         CustomerExporter $customerExporter,
         CategoryExporter $categoryExporter,
         CustomerStaging $customerStaging,
-        LoggerInterface $logger = null
+        LoggerInterface $logger = null,
+        OrderStaging $orderStaging = null
     ) {
         $this->productExporter = $productExporter;
         $this->orderExporter = $orderExporter;
@@ -46,6 +50,7 @@ class ImportExportDispatcher
         $this->categoryExporter = $categoryExporter;
         $this->customerStaging = $customerStaging;
         $this->logger = $logger;
+        $this->orderStaging = $orderStaging;
     }
 
     /**
@@ -61,22 +66,18 @@ class ImportExportDispatcher
         switch ($action) {
             case self::ACTION_EXPORT_PRODUCTS:
                 return $this->exportProducts($params);
-            
             case self::ACTION_EXPORT_CATEGORIES:
                 return $this->exportCategories($params);
-            
             case self::ACTION_IMPORT_ORDERS:
                 return $this->importOrders($params);
-            
+            case self::ACTION_STAGE_ORDERS:
+                return $this->stageOrders($params);
             case self::ACTION_EXPORT_CUSTOMERS:
                 return $this->exportCustomers($params);
-
             case self::ACTION_IMPORT_CUSTOMERS:
                 return $this->stageCustomers($params);
-            
             case self::ACTION_SYNC_ALL:
                 return $this->syncAll($params);
-            
             default:
                 return ['error' => 'Unknown action: ' . $action];
         }
@@ -143,6 +144,27 @@ class ImportExportDispatcher
         }
 
         return ['staged' => $staged, 'total' => count($wooCustomers)];
+    }
+
+    /**
+     * Stage orders from WooCommerce into staging for review
+     */
+    private function stageOrders(array $params): array
+    {
+        if ($this->orderStaging === null) {
+            return ['error' => 'Order staging service not configured', 'staged' => 0, 'total' => 0];
+        }
+
+        $limit = (int)($params['limit'] ?? 10);
+        $orders = $this->orderExporter->getOrders(['per_page' => $limit]);
+
+        if ($this->logger) {
+            $this->logger->info('Staging ' . count($orders) . ' orders from WooCommerce');
+        }
+
+        $stagedIds = $this->orderStaging->stageOrders($orders);
+
+        return ['staged' => count($stagedIds), 'total' => count($orders)];
     }
 
     /**

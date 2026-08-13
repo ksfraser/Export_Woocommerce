@@ -375,6 +375,12 @@ class hooks_ksf_FA_Woocommerce extends hooks
         $customerStaging = new \Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging(
             $dbInterface, $logger
         );
+        $orderStaging = new \Ksfraser\frontaccounting\Woocommerce\Staging\OrderStaging(
+            $dbInterface, $logger
+        );
+        
+        $customerStaging->ensureStagingTable();
+        $orderStaging->ensureStagingTable();
         
         $dispatcher = new \Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher(
             $productExporter,
@@ -382,7 +388,8 @@ class hooks_ksf_FA_Woocommerce extends hooks
             $customerExporter,
             $categoryExporter,
             $customerStaging,
-            $logger
+            $logger,
+            $orderStaging
         );
         
         $GLOBALS['woo_sync_services_cache'] = array(
@@ -391,6 +398,7 @@ class hooks_ksf_FA_Woocommerce extends hooks
             'customerExporter' => $customerExporter,
             'categoryExporter' => $categoryExporter,
             'customerStaging' => $customerStaging,
+            'orderStaging' => $orderStaging,
             'dispatcher' => $dispatcher,
             'logger' => $logger,
             'db' => $dbInterface,
