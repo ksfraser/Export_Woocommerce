@@ -10,21 +10,15 @@ $page_security = 'SA_WOOCOMMERCE_IMPORT';
 
 require_once '../includes/api/load.inc';
 
-$hooks = $GLOBALS['hooks'] ?? null;
-if ($hooks && method_exists($hooks, 'get_services')) {
-    $services = $hooks->get_services();
-    $customerStaging = $services['customerStaging'];
-    $customerExporter = $services['customerExporter'];
-} else {
-    $customerStaging = get_woo_customer_staging();
-    $customerExporter = get_woo_customer_exporter();
-}
+$services = woo_services();
+$customerStaging = $services['customerStaging'];
+$customerExporter = $services['customerExporter'];
 
 $title = _('Import WooCommerce Customers');
 $ajax = in_ajax();
 
 if (!$ajax) {
-    page_header($title);
+    page($title);
 }
 
 // Handle staging import
@@ -35,7 +29,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['stage'])) {
         // Stage customers from WooCommerce
         $limit = (int)($_POST['limit'] ?? 10);
-        $wooCustomers = $customerExporter->listCustomers(['limit' => $limit]);
+        try {
+            $wooCustomers = $customerExporter->listCustomers(['limit' => $limit]);
+        } catch (\Exception $e) {
+            display_error(_('Unable to fetch customers from WooCommerce: ') . $e->getMessage());
+            $wooCustomers = array();
+        }
         
         $staged = 0;
         foreach ($wooCustomers as $wc) {
@@ -54,11 +53,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $debtorNo = !empty($_POST['match_' . $stagingId]) && $_POST['match_' . $stagingId] !== 'new' 
             ? (int)$_POST['match_' . $stagingId] : null;
         
-        $result = $customerStaging->importCustomer($stagingId, $debtorNo);
-        if (isset($result['error'])) {
-            $error = $result['error'];
-        } else {
-            $message = sprintf('Customer imported as Debtor #%d', $result['debtor_no']);
+        try {
+            $result = $customerStaging->importCustomer($stagingId, $debtorNo);
+            if (isset($result['error'])) {
+                $error = $result['error'];
+            } else {
+                $message = sprintf('Customer imported as Debtor #%d', $result['debtor_no']);
+            }
+        } catch (\Exception $e) {
+            $error = _('Import failed: ') . $e->getMessage();
         }
     }
 }
@@ -145,12 +148,4 @@ foreach ($stagedCustomers as $sc) {
 <?php
 if (!$ajax) {
     end_page();
-}
-
-function get_woo_customer_staging() {
-    // Fallback implementation
-}
-
-function get_woo_customer_exporter() {
-    // Fallback implementation
 }

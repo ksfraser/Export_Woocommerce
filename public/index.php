@@ -12,19 +12,11 @@ $page_security = 'SA_WOOCOMMERCE_SYNC';
 
 require_once '../includes/api/load.inc';  // FA standard bootstrap
 
-// Get services from hooks
-$hooks = $GLOBALS['hooks'] ?? null;
-if ($hooks && method_exists($hooks, 'get_services')) {
-    $services = $hooks->get_services();
-    $dispatcher = $services['dispatcher'];
-    $customerStaging = $services['customerStaging'];
-    $logger = $services['logger'];
-} else {
-    // Fallback for direct access
-    $dispatcher = get_woo_dispatcher();
-    $customerStaging = $dispatcher->customerStaging ?? null;
-    $logger = null;
-}
+// Get services from the module hooks instance
+$services = woo_services();
+$dispatcher = $services['dispatcher'];
+$customerStaging = $services['customerStaging'];
+$logger = $services['logger'];
 
 // Handle form submissions
 $message = '';
@@ -33,7 +25,11 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
         $params = $_POST;
-        $result = $dispatcher->dispatch($_POST['action'], $params);
+        try {
+            $result = $dispatcher->dispatch($_POST['action'], $params);
+        } catch (\Exception $e) {
+            $result = array('error' => $e->getMessage());
+        }
         
         if (isset($result['error'])) {
             $error = $result['error'];
@@ -58,7 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         if ($stagingId > 0 && $customerStaging) {
-            $result = $customerStaging->importCustomer($stagingId, $selectedDebtor);
+            try {
+                $result = $customerStaging->importCustomer($stagingId, $selectedDebtor);
+            } catch (\Exception $e) {
+                $result = array('error' => $e->getMessage());
+            }
             if (isset($result['error'])) {
                 $error = $result['error'];
             } else {
@@ -77,7 +77,7 @@ $title = _('WooCommerce Sync');
 // Include FA header
 $ajax = in_ajax();
 if (!$ajax) {
-    page_header($title);
+    page($title);
 }
 
 // Display messages
@@ -146,7 +146,7 @@ if ($error) {
     <h2><?php echo _('Sync Log'); ?></h2>
     <div style="background: #f5f5f5; padding: 10px; max-height: 200px; overflow-y: auto;">
         <pre style="font-size: 11px;"><?php 
-            $logFile = $GLOBALS['path_to_root'] . '/modules/woocommerce_sync/logs/sync.log';
+            $logFile = $GLOBALS['path_to_root'] . '/modules/ksf_FA_Woocommerce/logs/sync.log';
             if (file_exists($logFile)) {
                 echo htmlspecialchars(file_get_contents($logFile));
             } else {
@@ -160,43 +160,4 @@ if ($error) {
 // Include FA footer
 if (!$ajax) {
     end_page();
-}
-
-/**
- * Get dispatcher (fallback when hooks not available)
- */
-function get_woo_dispatcher() {
-    global $db_connections;
-    $company = user_company();
-    
-    $config = (new \hooks_ksf_FA_Woocommerce())->get_woo_config();
-    
-    $logger = new \Ksfraser\Frontaccounting\Woocommerce\FileLogger(
-        $GLOBALS['path_to_root'] . '/modules/ksf_FA_Woocommerce/logs/sync.log'
-    );
-    
-    $wooClient = new \Automattic\WooCommerce\Client(
-        $config['wc_url'],
-        $config['wc_key'],
-        $config['wc_secret']
-    );
-    $restClient = new \Ksfraser\Frontaccounting\Woocommerce\WooRestClient($wooClient, $logger);
-    
-    $dbInterface = new \Ksfraser\frontaccounting\Woocommerce\MysqliDatabase(
-        $db_connections[$company]['host'],
-        $db_connections[$company]['username'],
-        $db_connections[$company]['password'],
-        $db_connections[$company]['dbname'],
-        $db_connections[$company]['tbpref']
-    );
-    
-    $productExporter = new \Ksfraser\Frontaccounting\Woocommerce\ProductExportService($restClient, $logger, $dbInterface);
-    $orderExporter = new \Ksfraser\Frontaccounting\Woocommerce\OrderExporter($restClient, $logger, $dbInterface);
-    $customerExporter = new \Ksfraser\Frontaccounting\Woocommerce\CustomerExporter($restClient, $logger, $dbInterface);
-    $categoryExporter = new \Ksfraser\Frontaccounting\Woocommerce\CategoryExporter($restClient, $logger, $dbInterface);
-    $customerStaging = new \Ksfraser\Frontaccounting\Woocommerce\Staging\CustomerStaging($dbInterface, $logger);
-    
-    return new \Ksfraser\Frontaccounting\Woocommerce\UI\ImportExportDispatcher(
-        $productExporter, $orderExporter, $customerExporter, $categoryExporter, $customerStaging, $logger
-    );
 }

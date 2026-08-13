@@ -10,39 +10,43 @@ $page_security = 'SA_WOOCOMMERCE_IMPORT';
 
 require_once '../includes/api/load.inc';
 
-$hooks = $GLOBALS['hooks'] ?? null;
-if ($hooks && method_exists($hooks, 'get_services')) {
-    $services = $hooks->get_services();
-    $orderExporter = $services['orderExporter'];
-} else {
-    $orderExporter = get_woo_order_exporter();
-}
+$services = woo_services();
+$orderExporter = $services['orderExporter'];
 
 $title = _('Import WooCommerce Orders');
 $ajax = in_ajax();
 
 if (!$ajax) {
-    page_header($title);
+    page($title);
 }
 
 // Handle import action
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import'])) {
     $limit = (int)($_POST['limit'] ?? 10);
-    $result = $orderExporter->importOrdersToFA(['limit' => $limit]);
-    $message = sprintf('Imported %d orders. Errors: %d', 
-        $result['imported'] ?? 0, 
-        count($result['errors'] ?? [])
-    );
-    if (!empty($result['errors'])) {
-        foreach ($result['errors'] as $err) {
-            display_error($err);
+    try {
+        $result = $orderExporter->importOrdersToFA(['limit' => $limit]);
+        $message = sprintf('Imported %d orders. Errors: %d',
+            $result['imported'] ?? 0,
+            count($result['errors'] ?? [])
+        );
+        if (!empty($result['errors'])) {
+            foreach ($result['errors'] as $err) {
+                display_error($err);
+            }
         }
+    } catch (\Exception $e) {
+        display_error(_('Import failed: ') . $e->getMessage());
     }
 }
 
 // Get recent orders
-$recentOrders = $orderExporter->getOrders(['per_page' => 10]);
+$recentOrders = array();
+try {
+    $recentOrders = $orderExporter->getOrders(['per_page' => 10]);
+} catch (\Exception $e) {
+    display_error(_('Unable to fetch orders from WooCommerce: ') . $e->getMessage());
+}
 ?>
 
 <div style="padding: 20px;">
@@ -97,8 +101,4 @@ $recentOrders = $orderExporter->getOrders(['per_page' => 10]);
 <?php
 if (!$ajax) {
     end_page();
-}
-
-function get_woo_order_exporter() {
-    // ... similar fallback as public/index.php
 }
