@@ -334,15 +334,18 @@ class hooks_ksf_FA_Woocommerce extends hooks
             return $GLOBALS['woo_sync_services_cache'];
         }
         
-        global $db_connections;
+        global $db_connections, $path_to_root;
         $company = user_company();
         
         // Get WooCommerce config
         $config = $this->get_woo_config();
         
         // Create services
+        $logDir = !empty($path_to_root)
+            ? rtrim($path_to_root, '/') . '/company/' . (int)$company
+            : $this->module_path;
         $logger = new \Ksfraser\frontaccounting\Woocommerce\FileLogger(
-            $this->module_path . '/logs/sync.log'
+            $logDir . '/woo_sync.log'
         );
         
         $wooClient = new \Automattic\WooCommerce\Client(
