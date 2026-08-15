@@ -18,12 +18,12 @@
 // Bootstrap
 require_once __DIR__ . '/vendor/autoload.php';
 
-use Ksfraser\frontaccounting\Woocommerce\ProductExportService;
-use Ksfraser\frontaccounting\Woocommerce\OrderExporter;
-use Ksfraser\frontaccounting\Woocommerce\CustomerExporter;
-use Ksfraser\frontaccounting\Woocommerce\CategoryExporter;
-use Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging;
-use Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher;
+use ksfraser\FrontAccounting\Woocommerce\ProductExportService;
+use ksfraser\FrontAccounting\Woocommerce\OrderExporter;
+use ksfraser\FrontAccounting\Woocommerce\CustomerExporter;
+use ksfraser\FrontAccounting\Woocommerce\CategoryExporter;
+use ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging;
+use ksfraser\FrontAccounting\Woocommerce\UI\ImportExportDispatcher;
 
 // Configuration
 $config = [
@@ -38,16 +38,16 @@ $config = [
 ];
 
 // Create dependencies (simplified - in production use DI container)
-$logger = new \Ksfraser\frontaccounting\Woocommerce\FileLogger(__DIR__ . '/logs/sync.log');
+$logger = new \ksfraser\FrontAccounting\Woocommerce\FileLogger(__DIR__ . '/logs/sync.log');
 
 $wooClient = new \Automattic\WooCommerce\Client(
     $config['wc_url'],
     $config['wc_key'],
     $config['wc_secret']
 );
-$restClient = new \Ksfraser\frontaccounting\Woocommerce\WooRestClient($wooClient, $logger);
+$restClient = new \ksfraser\FrontAccounting\Woocommerce\WooRestClient($wooClient, $logger);
 
-$db = new \Ksfraser\frontaccounting\Woocommerce\MysqliDatabase(
+$db = new \ksfraser\FrontAccounting\Woocommerce\MysqliDatabase(
     $config['db_host'],
     $config['db_user'],
     $config['db_pass'],

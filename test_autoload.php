@@ -3,7 +3,7 @@ require 'vendor/autoload.php';
 
 echo "Testing autoloading...\n";
 
-$class = 'Ksfraser\Frontaccounting\Woocommerce\WooRestClientInterface';
+$class = 'ksfraser\FrontAccounting\Woocommerce\WooRestClientInterface';
 echo "Checking if class exists: $class\n";
 echo "Result: " . (interface_exists($class) ? 'YES' : 'NO') . "\n";
 
