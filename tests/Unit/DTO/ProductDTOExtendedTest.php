@@ -1,7 +1,7 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit\DTO;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit\DTO;
 
-use Ksfraser\frontaccounting\Woocommerce\DTO\ProductDTO;
+use ksfraser\FrontAccounting\Woocommerce\DTO\ProductDTO;
 use PHPUnit\Framework\TestCase;
 
 class ProductDTOExtendedTest extends TestCase

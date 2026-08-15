@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce\Dao;
+namespace ksfraser\FrontAccounting\Woocommerce\Dao;
 
-use Ksfraser\frontaccounting\Woocommerce\DatabaseInterface;
+use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
 
 /**
  * Stock Item Data Access Object

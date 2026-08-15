@@ -1,9 +1,9 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit;
 
-use Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging;
-use Ksfraser\frontaccounting\Woocommerce\DatabaseInterface;
-use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
+use ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging;
+use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
+use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
 use PHPUnit\Framework\TestCase;
 
 class CustomerStagingExtendedTest extends TestCase

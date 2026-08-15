@@ -1,15 +1,15 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit;
 
-use Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher;
-use Ksfraser\frontaccounting\Woocommerce\ProductExportService;
-use Ksfraser\frontaccounting\Woocommerce\OrderExporter;
-use Ksfraser\frontaccounting\Woocommerce\CustomerExporter;
-use Ksfraser\frontaccounting\Woocommerce\CategoryExporter;
-use Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging;
-use Ksfraser\frontaccounting\Woocommerce\DatabaseInterface;
-use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
-use Ksfraser\frontaccounting\Woocommerce\WooRestClientInterface;
+use ksfraser\FrontAccounting\Woocommerce\UI\ImportExportDispatcher;
+use ksfraser\FrontAccounting\Woocommerce\ProductExportService;
+use ksfraser\FrontAccounting\Woocommerce\OrderExporter;
+use ksfraser\FrontAccounting\Woocommerce\CustomerExporter;
+use ksfraser\FrontAccounting\Woocommerce\CategoryExporter;
+use ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging;
+use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
+use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
+use ksfraser\FrontAccounting\Woocommerce\WooRestClientInterface;
 use PHPUnit\Framework\TestCase;
 
 class ImportExportDispatcherTest extends TestCase

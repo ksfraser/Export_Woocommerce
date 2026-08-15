@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce\Workflow;
+namespace ksfraser\FrontAccounting\Woocommerce\Workflow;
 
-use Ksfraser\frontaccounting\Woocommerce\Workflow\Status\StagingStatusInterface;
-use Ksfraser\frontaccounting\Woocommerce\Workflow\Status\StagingStatusTrait;
-use Ksfraser\frontaccounting\Woocommerce\Workflow\StateMachine\StateMachineInterface;
-use Ksfraser\frontaccounting\Woocommerce\Workflow\StateMachine\StateMachineTrait;
+use ksfraser\FrontAccounting\Woocommerce\Workflow\Status\StagingStatusInterface;
+use ksfraser\FrontAccounting\Woocommerce\Workflow\Status\StagingStatusTrait;
+use ksfraser\FrontAccounting\Woocommerce\Workflow\StateMachine\StateMachineInterface;
+use ksfraser\FrontAccounting\Woocommerce\Workflow\StateMachine\StateMachineTrait;
 
 /**
  * WooCommerce Sync State Machine

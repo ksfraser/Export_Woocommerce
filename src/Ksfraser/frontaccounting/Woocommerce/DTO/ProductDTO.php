@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce\DTO;
+namespace ksfraser\FrontAccounting\Woocommerce\DTO;
 
 /**
  * Product Data Transfer Object

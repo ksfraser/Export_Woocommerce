@@ -15,9 +15,9 @@ namespace {
     }
 }
 
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit {
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit {
 
-use Ksfraser\frontaccounting\Woocommerce\OrderExporter;
+use ksfraser\FrontAccounting\Woocommerce\OrderExporter;
 use PHPUnit\Framework\TestCase;
 
 /**

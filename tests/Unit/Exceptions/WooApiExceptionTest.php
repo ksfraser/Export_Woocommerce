@@ -1,8 +1,8 @@
 <?php
 
-namespace Ksfraser\Tests\frontaccounting\Woocommerce\Exceptions;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Exceptions;
 
-use Ksfraser\frontaccounting\Woocommerce\Exceptions\WooApiException;
+use ksfraser\FrontAccounting\Woocommerce\Exceptions\WooApiException;
 use PHPUnit\Framework\TestCase;
 
 class WooApiExceptionTest extends TestCase

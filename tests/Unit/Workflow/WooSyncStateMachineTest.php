@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit\Workflow;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit\Workflow;
 
-use Ksfraser\frontaccounting\Woocommerce\Workflow\WooSyncStateMachine;
-use Ksfraser\frontaccounting\Woocommerce\Workflow\Status\StagingStatusInterface;
-use Ksfraser\frontaccounting\Woocommerce\Workflow\StateMachine\StateMachineInterface;
+use ksfraser\FrontAccounting\Woocommerce\Workflow\WooSyncStateMachine;
+use ksfraser\FrontAccounting\Woocommerce\Workflow\Status\StagingStatusInterface;
+use ksfraser\FrontAccounting\Woocommerce\Workflow\StateMachine\StateMachineInterface;
 use PHPUnit\Framework\TestCase;
 
 class WooSyncStateMachineTest extends TestCase

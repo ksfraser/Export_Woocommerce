@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 

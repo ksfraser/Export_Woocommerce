@@ -1,8 +1,8 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce\Staging;
+namespace ksfraser\FrontAccounting\Woocommerce\Staging;
 
-use Ksfraser\frontaccounting\Woocommerce\DatabaseInterface;
-use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
+use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
+use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
 
 class CustomerStaging
 {

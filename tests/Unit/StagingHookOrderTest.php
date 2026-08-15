@@ -17,12 +17,12 @@ namespace {
     }
 }
 
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit\Staging {
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit\Staging {
 
-use Ksfraser\frontaccounting\Woocommerce\Staging\OrderStaging;
-use Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging;
-use Ksfraser\frontaccounting\Woocommerce\DatabaseInterface;
-use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
+use ksfraser\FrontAccounting\Woocommerce\Staging\OrderStaging;
+use ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging;
+use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
+use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
 use PHPUnit\Framework\TestCase;
 
 /**

@@ -1,17 +1,17 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit;
-use Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher;
-use Ksfraser\frontaccounting\Woocommerce\OrderExporter;
-use Ksfraser\frontaccounting\Woocommerce\CustomerExporter;
-use Ksfraser\frontaccounting\Woocommerce\CategoryExporter;
-use Ksfraser\frontaccounting\Woocommerce\ProductService;
-use Ksfraser\frontaccounting\Woocommerce\ProductExportService;
-use Ksfraser\frontaccounting\Woocommerce\Staging\OrderStaging;
-use Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging;
-use Ksfraser\frontaccounting\Woocommerce\Dao\SyncDao;
-use Ksfraser\frontaccounting\Woocommerce\DatabaseInterface;
-use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
-use Ksfraser\frontaccounting\Woocommerce\WooRestClientInterface;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit;
+use ksfraser\FrontAccounting\Woocommerce\UI\ImportExportDispatcher;
+use ksfraser\FrontAccounting\Woocommerce\OrderExporter;
+use ksfraser\FrontAccounting\Woocommerce\CustomerExporter;
+use ksfraser\FrontAccounting\Woocommerce\CategoryExporter;
+use ksfraser\FrontAccounting\Woocommerce\ProductService;
+use ksfraser\FrontAccounting\Woocommerce\ProductExportService;
+use ksfraser\FrontAccounting\Woocommerce\Staging\OrderStaging;
+use ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging;
+use ksfraser\FrontAccounting\Woocommerce\Dao\SyncDao;
+use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
+use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
+use ksfraser\FrontAccounting\Woocommerce\WooRestClientInterface;
 
 use PHPUnit\Framework\TestCase;
 
@@ -33,33 +33,33 @@ class WooSyncUITest extends TestCase
         $this->mockDb->method('getPrefix')->willReturn('0_');
         // Don't set default query/execute - set per test with willReturnCallback
         
-        $this->customerStaging = new \Ksfraser\Frontaccounting\Woocommerce\Staging\CustomerStaging(
+        $this->customerStaging = new \ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging(
             $this->mockDb,
             $this->mockLogger
         );
         
-        $productExporter = new \Ksfraser\Frontaccounting\Woocommerce\ProductExportService(
+        $productExporter = new \ksfraser\FrontAccounting\Woocommerce\ProductExportService(
             $this->mockRestClient,
             $this->mockLogger,
             $this->mockDb
         );
-        $orderExporter = new \Ksfraser\Frontaccounting\Woocommerce\OrderExporter(
+        $orderExporter = new \ksfraser\FrontAccounting\Woocommerce\OrderExporter(
             $this->mockRestClient,
             $this->mockLogger,
             $this->mockDb
         );
-        $customerExporter = new \Ksfraser\Frontaccounting\Woocommerce\CustomerExporter(
+        $customerExporter = new \ksfraser\FrontAccounting\Woocommerce\CustomerExporter(
             $this->mockRestClient,
             $this->mockLogger,
             $this->mockDb
         );
-        $categoryExporter = new \Ksfraser\Frontaccounting\Woocommerce\CategoryExporter(
+        $categoryExporter = new \ksfraser\FrontAccounting\Woocommerce\CategoryExporter(
             $this->mockRestClient,
             $this->mockLogger,
             $this->mockDb
         );
         
-        $this->dispatcher = new \Ksfraser\Frontaccounting\Woocommerce\UI\ImportExportDispatcher(
+        $this->dispatcher = new \ksfraser\FrontAccounting\Woocommerce\UI\ImportExportDispatcher(
             $productExporter,
             $orderExporter,
             $customerExporter,
@@ -172,7 +172,7 @@ class WooSyncUITest extends TestCase
         ];
         
         // Create a complete mock with all methods
-        $mockDb = new class implements \Ksfraser\Frontaccounting\Woocommerce\DatabaseInterface {
+        $mockDb = new class implements \ksfraser\FrontAccounting\Woocommerce\DatabaseInterface {
             private $callCount = 0;
             
             public function query(string $sql): array
@@ -199,7 +199,7 @@ class WooSyncUITest extends TestCase
             }
         };
         
-        $customerStaging = new \Ksfraser\Frontaccounting\Woocommerce\Staging\CustomerStaging(
+        $customerStaging = new \ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging(
             $mockDb,
             $this->mockLogger
         );
@@ -225,7 +225,7 @@ class WooSyncUITest extends TestCase
     public function testImportCustomerNewCustomer(): void
     {
         // Create mock that returns predictable values
-        $mockDb = new class implements \Ksfraser\Frontaccounting\Woocommerce\DatabaseInterface {
+        $mockDb = new class implements \ksfraser\FrontAccounting\Woocommerce\DatabaseInterface {
             private $queryCount = 0;
             
             public function query(string $sql): array
@@ -266,7 +266,7 @@ class WooSyncUITest extends TestCase
             }
         };
         
-        $customerStaging = new \Ksfraser\Frontaccounting\Woocommerce\Staging\CustomerStaging(
+        $customerStaging = new \ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging(
             $mockDb,
             $this->mockLogger
         );
@@ -280,7 +280,7 @@ class WooSyncUITest extends TestCase
 
     public function testImportCustomerExistingCustomer(): void
     {
-        $mockDb = new class implements \Ksfraser\Frontaccounting\Woocommerce\DatabaseInterface {
+        $mockDb = new class implements \ksfraser\FrontAccounting\Woocommerce\DatabaseInterface {
             private $queryCount = 0;
             
             public function query(string $sql): array
@@ -312,7 +312,7 @@ class WooSyncUITest extends TestCase
             }
         };
         
-        $customerStaging = new \Ksfraser\Frontaccounting\Woocommerce\Staging\CustomerStaging(
+        $customerStaging = new \ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging(
             $mockDb,
             $this->mockLogger
         );
@@ -332,7 +332,7 @@ class WooSyncUITest extends TestCase
             'match_1' => 'new'
         ];
         
-        $mockDb = new class implements \Ksfraser\Frontaccounting\Woocommerce\DatabaseInterface {
+        $mockDb = new class implements \ksfraser\FrontAccounting\Woocommerce\DatabaseInterface {
             private $queryCount = 0;
             
             public function query(string $sql): array
@@ -366,7 +366,7 @@ class WooSyncUITest extends TestCase
             }
         };
         
-        $customerStaging = new \Ksfraser\Frontaccounting\Woocommerce\Staging\CustomerStaging(
+        $customerStaging = new \ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging(
             $mockDb,
             $this->mockLogger
         );

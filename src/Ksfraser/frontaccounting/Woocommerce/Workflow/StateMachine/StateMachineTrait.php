@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce\Workflow\StateMachine;
+namespace ksfraser\FrontAccounting\Woocommerce\Workflow\StateMachine;
 
 /**
  * Generic State Machine Trait

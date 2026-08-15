@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce\Workflow\Status;
+namespace ksfraser\FrontAccounting\Woocommerce\Workflow\Status;
 
 /**
  * Staging Status Trait

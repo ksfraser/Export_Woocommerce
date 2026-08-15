@@ -103,22 +103,22 @@ if (file_exists($autoloader)) {
     
     // Pre-load all our classes so they're available for PHPUnit
     $classes = [
-        'Ksfraser\frontaccounting\Woocommerce\DatabaseInterface',
-        'Ksfraser\frontaccounting\Woocommerce\LoggerInterface',
-        'Ksfraser\frontaccounting\Woocommerce\WooRestClientInterface',
-        'Ksfraser\frontaccounting\Woocommerce\CategoryExporter',
-        'Ksfraser\frontaccounting\Woocommerce\ProductService',
-        'Ksfraser\frontaccounting\Woocommerce\ProductExportService',
-        'Ksfraser\frontaccounting\Woocommerce\CustomerExporter',
-        'Ksfraser\frontaccounting\Woocommerce\OrderExporter',
-        'Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging',
-        'Ksfraser\frontaccounting\Woocommerce\Staging\OrderStaging',
-        'Ksfraser\frontaccounting\Woocommerce\Dao\SyncDao',
-        'Ksfraser\frontaccounting\Woocommerce\Dao\StockItemDao',
-        'Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher',
-        'Ksfraser\frontaccounting\Woocommerce\Workflow\WooSyncStateMachine',
-        'Ksfraser\frontaccounting\Woocommerce\Workflow\Status\StagingStatusInterface',
-        'Ksfraser\frontaccounting\Woocommerce\Workflow\StateMachine\StateMachineInterface',
+        'ksfraser\FrontAccounting\Woocommerce\DatabaseInterface',
+        'ksfraser\FrontAccounting\Woocommerce\LoggerInterface',
+        'ksfraser\FrontAccounting\Woocommerce\WooRestClientInterface',
+        'ksfraser\FrontAccounting\Woocommerce\CategoryExporter',
+        'ksfraser\FrontAccounting\Woocommerce\ProductService',
+        'ksfraser\FrontAccounting\Woocommerce\ProductExportService',
+        'ksfraser\FrontAccounting\Woocommerce\CustomerExporter',
+        'ksfraser\FrontAccounting\Woocommerce\OrderExporter',
+        'ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging',
+        'ksfraser\FrontAccounting\Woocommerce\Staging\OrderStaging',
+        'ksfraser\FrontAccounting\Woocommerce\Dao\SyncDao',
+        'ksfraser\FrontAccounting\Woocommerce\Dao\StockItemDao',
+        'ksfraser\FrontAccounting\Woocommerce\UI\ImportExportDispatcher',
+        'ksfraser\FrontAccounting\Woocommerce\Workflow\WooSyncStateMachine',
+        'ksfraser\FrontAccounting\Woocommerce\Workflow\Status\StagingStatusInterface',
+        'ksfraser\FrontAccounting\Woocommerce\Workflow\StateMachine\StateMachineInterface',
     ];
     
     if ($loader) {

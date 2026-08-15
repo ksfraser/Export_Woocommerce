@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit;
 
-use Ksfraser\frontaccounting\Woocommerce\ItemEventListener;
-use Ksfraser\frontaccounting\Woocommerce\ProductExportService;
-use Ksfraser\frontaccounting\Woocommerce\Dao\StockItemDao;
-use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
+use ksfraser\FrontAccounting\Woocommerce\ItemEventListener;
+use ksfraser\FrontAccounting\Woocommerce\ProductExportService;
+use ksfraser\FrontAccounting\Woocommerce\Dao\StockItemDao;
+use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
 use PHPUnit\Framework\TestCase;
 
 /**

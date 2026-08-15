@@ -243,20 +243,20 @@ class hooks_ksf_FA_Woocommerce extends hooks
     /**
      * Build the item event listener bound to the current FA company.
      *
-     * @return \Ksfraser\frontaccounting\Woocommerce\ItemEventListener|null
+     * @return \ksfraser\FrontAccounting\Woocommerce\ItemEventListener|null
      */
     private function buildItemEventListener() {
         $autoload = $this->module_path . '/vendor/autoload.php';
         if (file_exists($autoload)) {
             require_once $autoload;
         }
-        if (!class_exists('\Ksfraser\frontaccounting\Woocommerce\ItemEventListener')) {
+        if (!class_exists('\ksfraser\FrontAccounting\Woocommerce\ItemEventListener')) {
             return null;
         }
         try {
             $services = $this->get_services();
-            return new \Ksfraser\frontaccounting\Woocommerce\ItemEventListener(
-                new \Ksfraser\frontaccounting\Woocommerce\Dao\StockItemDao($services['db']),
+            return new \ksfraser\FrontAccounting\Woocommerce\ItemEventListener(
+                new \ksfraser\FrontAccounting\Woocommerce\Dao\StockItemDao($services['db']),
                 $services['logger'],
                 $services['productExporter']
             );
@@ -344,7 +344,7 @@ class hooks_ksf_FA_Woocommerce extends hooks
         $logDir = !empty($path_to_root)
             ? rtrim($path_to_root, '/') . '/company/' . (int)$company
             : $this->module_path;
-        $logger = new \Ksfraser\frontaccounting\Woocommerce\FileLogger(
+        $logger = new \ksfraser\FrontAccounting\Woocommerce\FileLogger(
             $logDir . '/woo_sync.log'
         );
         
@@ -353,9 +353,9 @@ class hooks_ksf_FA_Woocommerce extends hooks
             $config['wc_key'],
             $config['wc_secret']
         );
-        $restClient = new \Ksfraser\frontaccounting\Woocommerce\WooRestClient($wooClient, $logger);
+        $restClient = new \ksfraser\FrontAccounting\Woocommerce\WooRestClient($wooClient, $logger);
         
-        $dbInterface = new \Ksfraser\frontaccounting\Woocommerce\MysqliDatabase(
+        $dbInterface = new \ksfraser\FrontAccounting\Woocommerce\MysqliDatabase(
             $db_connections[$company]['host'],
             $db_connections[$company]['dbuser'],
             $db_connections[$company]['dbpassword'],
@@ -363,29 +363,29 @@ class hooks_ksf_FA_Woocommerce extends hooks
             $db_connections[$company]['tbpref']
         );
         
-        $productExporter = new \Ksfraser\frontaccounting\Woocommerce\ProductExportService(
+        $productExporter = new \ksfraser\FrontAccounting\Woocommerce\ProductExportService(
             $restClient, $logger, $dbInterface
         );
-        $orderExporter = new \Ksfraser\frontaccounting\Woocommerce\OrderExporter(
+        $orderExporter = new \ksfraser\FrontAccounting\Woocommerce\OrderExporter(
             $restClient, $logger, $dbInterface
         );
-        $customerExporter = new \Ksfraser\frontaccounting\Woocommerce\CustomerExporter(
+        $customerExporter = new \ksfraser\FrontAccounting\Woocommerce\CustomerExporter(
             $restClient, $logger, $dbInterface
         );
-        $categoryExporter = new \Ksfraser\frontaccounting\Woocommerce\CategoryExporter(
+        $categoryExporter = new \ksfraser\FrontAccounting\Woocommerce\CategoryExporter(
             $restClient, $logger, $dbInterface
         );
-        $customerStaging = new \Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging(
+        $customerStaging = new \ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging(
             $dbInterface, $logger
         );
-        $orderStaging = new \Ksfraser\frontaccounting\Woocommerce\Staging\OrderStaging(
+        $orderStaging = new \ksfraser\FrontAccounting\Woocommerce\Staging\OrderStaging(
             $dbInterface, $logger
         );
         
         $customerStaging->ensureStagingTable();
         $orderStaging->ensureStagingTable();
         
-        $dispatcher = new \Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher(
+        $dispatcher = new \ksfraser\FrontAccounting\Woocommerce\UI\ImportExportDispatcher(
             $productExporter,
             $orderExporter,
             $customerExporter,

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce;
+namespace ksfraser\FrontAccounting\Woocommerce;
 
 class ProductDataBuilder
 {

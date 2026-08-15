@@ -1,5 +1,5 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce;
+namespace ksfraser\FrontAccounting\Woocommerce;
 
 /**
  * Category Exporter

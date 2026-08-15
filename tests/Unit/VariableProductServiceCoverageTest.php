@@ -1,10 +1,10 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit;
 
-use Ksfraser\frontaccounting\Woocommerce\VariableProductService;
-use Ksfraser\frontaccounting\Woocommerce\DatabaseInterface;
-use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
-use Ksfraser\frontaccounting\Woocommerce\WooRestClientInterface;
+use ksfraser\FrontAccounting\Woocommerce\VariableProductService;
+use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
+use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
+use ksfraser\FrontAccounting\Woocommerce\WooRestClientInterface;
 use PHPUnit\Framework\TestCase;
 
 class VariableProductServiceCoverageTest extends TestCase

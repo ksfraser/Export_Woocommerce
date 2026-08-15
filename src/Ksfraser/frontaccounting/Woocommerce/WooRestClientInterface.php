@@ -1,5 +1,5 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce;
+namespace ksfraser\FrontAccounting\Woocommerce;
 
 interface WooRestClientInterface {
     public function get(string $endpoint, array $params = []): array;

@@ -1,7 +1,7 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce;
+namespace ksfraser\FrontAccounting\Woocommerce;
 
-use Ksfraser\frontaccounting\Woocommerce\Exceptions\WooApiException;
+use ksfraser\FrontAccounting\Woocommerce\Exceptions\WooApiException;
 
 /**
  * Product Export Service

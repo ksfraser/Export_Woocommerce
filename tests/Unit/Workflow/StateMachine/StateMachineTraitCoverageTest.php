@@ -1,8 +1,8 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit\Workflow\StateMachine;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit\Workflow\StateMachine;
 
-use Ksfraser\frontaccounting\Woocommerce\Workflow\StateMachine\StateMachineInterface;
-use Ksfraser\frontaccounting\Woocommerce\Workflow\StateMachine\StateMachineTrait;
+use ksfraser\FrontAccounting\Woocommerce\Workflow\StateMachine\StateMachineInterface;
+use ksfraser\FrontAccounting\Woocommerce\Workflow\StateMachine\StateMachineTrait;
 use PHPUnit\Framework\TestCase;
 
 class TestStateMachine implements StateMachineInterface

@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit;
 
-use Ksfraser\frontaccounting\Woocommerce\WooRestClient;
-use Ksfraser\frontaccounting\Woocommerce\WooRestClientInterface;
-use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
-use Ksfraser\frontaccounting\Woocommerce\Exceptions\WooApiException;
+use ksfraser\FrontAccounting\Woocommerce\WooRestClient;
+use ksfraser\FrontAccounting\Woocommerce\WooRestClientInterface;
+use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
+use ksfraser\FrontAccounting\Woocommerce\Exceptions\WooApiException;
 use Automattic\WooCommerce\Client;
 use PHPUnit\Framework\TestCase;
 

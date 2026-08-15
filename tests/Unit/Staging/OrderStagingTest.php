@@ -1,19 +1,19 @@
 <?php
 
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit\Staging;
-use Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher;
-use Ksfraser\frontaccounting\Woocommerce\OrderExporter;
-use Ksfraser\frontaccounting\Woocommerce\CustomerExporter;
-use Ksfraser\frontaccounting\Woocommerce\CategoryExporter;
-use Ksfraser\frontaccounting\Woocommerce\ProductService;
-use Ksfraser\frontaccounting\Woocommerce\ProductExportService;
-use Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging;
-use Ksfraser\frontaccounting\Woocommerce\Dao\SyncDao;
-use Ksfraser\frontaccounting\Woocommerce\WooRestClientInterface;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit\Staging;
+use ksfraser\FrontAccounting\Woocommerce\UI\ImportExportDispatcher;
+use ksfraser\FrontAccounting\Woocommerce\OrderExporter;
+use ksfraser\FrontAccounting\Woocommerce\CustomerExporter;
+use ksfraser\FrontAccounting\Woocommerce\CategoryExporter;
+use ksfraser\FrontAccounting\Woocommerce\ProductService;
+use ksfraser\FrontAccounting\Woocommerce\ProductExportService;
+use ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging;
+use ksfraser\FrontAccounting\Woocommerce\Dao\SyncDao;
+use ksfraser\FrontAccounting\Woocommerce\WooRestClientInterface;
 
-use Ksfraser\frontaccounting\Woocommerce\Staging\OrderStaging;
-use Ksfraser\frontaccounting\Woocommerce\DatabaseInterface;
-use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
+use ksfraser\FrontAccounting\Woocommerce\Staging\OrderStaging;
+use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
+use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
 use PHPUnit\Framework\TestCase;
 
 class OrderStagingTest extends TestCase

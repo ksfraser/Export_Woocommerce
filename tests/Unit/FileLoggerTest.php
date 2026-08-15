@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit;
 
-use Ksfraser\frontaccounting\Woocommerce\FileLogger;
+use ksfraser\FrontAccounting\Woocommerce\FileLogger;
 use PHPUnit\Framework\TestCase;
 
 /**

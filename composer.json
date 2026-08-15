@@ -23,8 +23,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Ksfraser\\frontaccounting\\Woocommerce\\": "src/Ksfraser/frontaccounting/Woocommerce/",
-            "Ksfraser\\Tests\\frontaccounting\\Woocommerce\\": "tests/"
+            "ksfraser\\FrontAccounting\\Woocommerce\\": "src/Ksfraser/frontaccounting/Woocommerce/",
+            "ksfraser\\FrontAccounting\\Woocommerce\\Tests\\": "tests/"
         }
     },
     "config": {

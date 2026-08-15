@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce;
+namespace ksfraser\FrontAccounting\Woocommerce;
 
-use Ksfraser\frontaccounting\Woocommerce\Dao\StockItemDao;
+use ksfraser\FrontAccounting\Woocommerce\Dao\StockItemDao;
 
 /**
  * Item Event Listener

@@ -1,5 +1,5 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce\DTO;
+namespace ksfraser\FrontAccounting\Woocommerce\DTO;
 
 /**
  * Customer Data Transfer Object

@@ -1,8 +1,8 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit\Workflow;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit\Workflow;
 
-use Ksfraser\frontaccounting\Woocommerce\Workflow\WooSyncStateMachine;
-use Ksfraser\frontaccounting\Woocommerce\Workflow\Status\StagingStatusInterface;
+use ksfraser\FrontAccounting\Woocommerce\Workflow\WooSyncStateMachine;
+use ksfraser\FrontAccounting\Woocommerce\Workflow\Status\StagingStatusInterface;
 use PHPUnit\Framework\TestCase;
 
 class StatusTraitsCoverageTest extends TestCase

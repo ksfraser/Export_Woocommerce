@@ -1,9 +1,9 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce\Staging;
+namespace ksfraser\FrontAccounting\Woocommerce\Staging;
 
-use Ksfraser\frontaccounting\Woocommerce\DatabaseInterface;
-use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
-use Ksfraser\frontaccounting\Woocommerce\DTO\OrderDTO;
+use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
+use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
+use ksfraser\FrontAccounting\Woocommerce\DTO\OrderDTO;
 
 class OrderStaging
 {

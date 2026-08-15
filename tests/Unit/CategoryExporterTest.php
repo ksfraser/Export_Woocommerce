@@ -1,9 +1,9 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit;
-use Ksfraser\frontaccounting\Woocommerce\CategoryExporter;
-use Ksfraser\frontaccounting\Woocommerce\DatabaseInterface;
-use Ksfraser\frontaccounting\Woocommerce\LoggerInterface;
-use Ksfraser\frontaccounting\Woocommerce\WooRestClientInterface;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit;
+use ksfraser\FrontAccounting\Woocommerce\CategoryExporter;
+use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
+use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
+use ksfraser\FrontAccounting\Woocommerce\WooRestClientInterface;
 
 use PHPUnit\Framework\TestCase;
 

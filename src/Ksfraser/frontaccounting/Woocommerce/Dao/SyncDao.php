@@ -1,7 +1,7 @@
 <?php
-namespace Ksfraser\frontaccounting\Woocommerce\Dao;
+namespace ksfraser\FrontAccounting\Woocommerce\Dao;
 
-use Ksfraser\frontaccounting\Woocommerce\DatabaseInterface;
+use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
 
 /**
  * WooCommerce Sync Data Access Object

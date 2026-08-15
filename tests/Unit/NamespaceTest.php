@@ -1,15 +1,15 @@
 <?php
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce\Tests\Unit;
+namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit;
 
-use Ksfraser\frontaccounting\Woocommerce\ProductService;
-use Ksfraser\frontaccounting\Woocommerce\Staging\CustomerStaging;
-use Ksfraser\frontaccounting\Woocommerce\Staging\OrderStaging;
-use Ksfraser\frontaccounting\Woocommerce\Workflow\WooSyncStateMachine;
-use Ksfraser\frontaccounting\Woocommerce\DTO\CustomerDTO;
-use Ksfraser\frontaccounting\Woocommerce\Dao\SyncDao;
-use Ksfraser\frontaccounting\Woocommerce\UI\ImportExportDispatcher;
+use ksfraser\FrontAccounting\Woocommerce\ProductService;
+use ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging;
+use ksfraser\FrontAccounting\Woocommerce\Staging\OrderStaging;
+use ksfraser\FrontAccounting\Woocommerce\Workflow\WooSyncStateMachine;
+use ksfraser\FrontAccounting\Woocommerce\DTO\CustomerDTO;
+use ksfraser\FrontAccounting\Woocommerce\Dao\SyncDao;
+use ksfraser\FrontAccounting\Woocommerce\UI\ImportExportDispatcher;
 
 use PHPUnit\Framework\TestCase;
 
@@ -32,13 +32,14 @@ class NamespaceTest extends TestCase
     public function testNamespaceIsCorrect(): void
     {
         $reflection = new \ReflectionClass(ProductService::class);
-        $this->assertEquals('Ksfraser\\frontaccounting\\Woocommerce', $reflection->getNamespaceName());
+        $this->assertEquals('ksfraser\\FrontAccounting\\Woocommerce', $reflection->getNamespaceName());
     }
 
-    public function testUsesLowercaseFrontaccounting(): void
+    public function testUsesFrontAccountingNamespaceConvention(): void
     {
-        // FA convention is lowercase 'frontaccounting' in namespace
-        $this->assertStringContainsString('frontaccounting', ProductService::class);
-        $this->assertStringNotContainsString('FrontAccounting', ProductService::class);
+        // Master convention: ksfraser\FrontAccounting\<ModuleName>\
+        $this->assertStringContainsString('ksfraser', ProductService::class);
+        $this->assertStringContainsString('FrontAccounting', ProductService::class);
+        $this->assertStringNotContainsString('Ksfraser', ProductService::class);
     }
 }

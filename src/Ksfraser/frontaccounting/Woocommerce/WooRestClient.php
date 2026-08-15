@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace Ksfraser\frontaccounting\Woocommerce;
+namespace ksfraser\FrontAccounting\Woocommerce;
 
 use Automattic\WooCommerce\Client;
-use Ksfraser\frontaccounting\Woocommerce\Exceptions\WooApiException;
+use ksfraser\FrontAccounting\Woocommerce\Exceptions\WooApiException;
 
 class WooRestClient implements WooRestClientInterface
 {
