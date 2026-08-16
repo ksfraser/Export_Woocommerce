@@ -1,4 +1,4 @@
-<?php<?php
+<?php
 /**
  * @deprecated 
  * This file contains legacy code that has been superseded by the
@@ -15,7 +15,7 @@
  * DO NOT USE - Use the new module instead.
  */
 
-<?php
+
 
 
 require_once( __DIR__ . '/../ksf_modules_common/class.rest_client.php' ); 
@@ -263,7 +263,7 @@ class woo_rest extends rest_client
 	}
 
 }
-?>
+
 
 
 

@@ -1,4 +1,4 @@
-<?php<?php
+<?php
 /**
  * @deprecated 
  * This file contains legacy code that has been superseded by the
@@ -15,7 +15,7 @@
  * DO NOT USE - Use the new module instead.
  */
 
-<?php
+
 
 /*******************************************
  * If you change the list of properties below, ensure that you also modify
@@ -34,7 +34,7 @@
 		//boolean -> 'bool',  'comment' => '
 		//array -> 'int(11)',  'foreign_obj' => '',  'comment' => '
 		//object -> 'int(11)',  'foreign_obj' => '',  'comment' => '
-		//read-only -> 'readwrite' = > 'readonly'
+		//read-only -> 'readwrite' => 'readonly'
 		//^ -> \t\$this->fields_array[] = array('name' => '
 		//;\t\/\/ -> ',
 		// --> 'comment' => '
@@ -858,7 +858,7 @@ class woo_interface extends table_interface
 
 }
 
-?>
+
 
 
 /*******************************************
@@ -878,7 +878,7 @@ class woo_interface extends table_interface
 		//boolean -> 'bool',  'comment' => '
 		//array -> 'int(11)',  'foreign_obj' => '',  'comment' => '
 		//object -> 'int(11)',  'foreign_obj' => '',  'comment' => '
-		//read-only -> 'readwrite' = > 'readonly'
+		//read-only -> 'readwrite' => 'readonly'
 		//^ -> \t\$this->fields_array[] = array('name' => '
 		//;\t\/\/ -> ',
 		// --> 'comment' => '

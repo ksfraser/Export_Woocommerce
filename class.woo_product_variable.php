@@ -1,4 +1,4 @@
-<?php<?php
+<?php
 /**
  * @deprecated 
  * This file contains legacy code that has been superseded by the
@@ -15,7 +15,7 @@
  * DO NOT USE - Use the new module instead.
  */
 
-<?php
+
 
 
 require_once( 'class.woo_product.php' );
@@ -24,7 +24,6 @@ class woo_product_variable extends woo_product {
 	
 	function create_product()
 	{
-		 */
 		
 		$this->build_data_array();
 		try {
@@ -109,7 +108,7 @@ class woo_product_variable extends woo_product {
 	}
 }
 
-?>
+
 
 
 
@@ -119,7 +118,6 @@ class woo_product_variable extends woo_product {
 	
 	function create_product()
 	{
-		 */
 		
 		$this->build_data_array();
 		try {

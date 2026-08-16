@@ -28,15 +28,22 @@ trait WorkflowStatusTrait
 
     public static function getStatusDescription(string $status): string
     {
-        return match ($status) {
-            self::STATUS_PENDING => 'Pending - Awaiting processing',
-            self::STATUS_IN_PROGRESS => 'In Progress - Currently being processed',
-            self::STATUS_COMPLETED => 'Completed - Successfully finished',
-            self::STATUS_ERROR => 'Error - An error occurred',
-            self::STATUS_FAILED => 'Failed - Operation failed',
-            self::STATUS_CANCELLED => 'Cancelled - Operation cancelled',
-            default => 'Unknown status: ' . $status,
-        };
+        switch ($status) {
+            case self::STATUS_PENDING:
+                return 'Pending - Awaiting processing';
+            case self::STATUS_IN_PROGRESS:
+                return 'In Progress - Currently being processed';
+            case self::STATUS_COMPLETED:
+                return 'Completed - Successfully finished';
+            case self::STATUS_ERROR:
+                return 'Error - An error occurred';
+            case self::STATUS_FAILED:
+                return 'Failed - Operation failed';
+            case self::STATUS_CANCELLED:
+                return 'Cancelled - Operation cancelled';
+            default:
+                return 'Unknown status: ' . $status;
+        }
     }
 
     public static function isFinalStatus(string $status): bool

@@ -41,15 +41,22 @@ trait StagingStatusTrait
             return $baseDesc;
         }
 
-        return match ($status) {
-            self::STATUS_STAGED => 'Staged - Awaiting processing',
-            self::STATUS_PENDING_REVIEW => 'Pending Review - Requires manual review',
-            self::STATUS_MATCHED => 'Matched - Entity matched in target system',
-            self::STATUS_PROCESSING => 'Processing - Import in progress',
-            self::STATUS_PROCESSED => 'Processed - Import completed successfully',
-            self::STATUS_IMPORTED => 'Imported - Successfully imported to target system',
-            default => 'Unknown staging status: ' . $status,
-        };
+        switch ($status) {
+            case self::STATUS_STAGED:
+                return 'Staged - Awaiting processing';
+            case self::STATUS_PENDING_REVIEW:
+                return 'Pending Review - Requires manual review';
+            case self::STATUS_MATCHED:
+                return 'Matched - Entity matched in target system';
+            case self::STATUS_PROCESSING:
+                return 'Processing - Import in progress';
+            case self::STATUS_PROCESSED:
+                return 'Processed - Import completed successfully';
+            case self::STATUS_IMPORTED:
+                return 'Imported - Successfully imported to target system';
+            default:
+                return 'Unknown staging status: ' . $status;
+        }
     }
 
     public static function isImportable(string $status): bool

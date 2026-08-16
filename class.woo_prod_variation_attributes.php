@@ -1,4 +1,4 @@
-<?php<?php
+<?php
 /**
  * @deprecated 
  * This file contains legacy code that has been superseded by the
@@ -15,7 +15,7 @@
  * DO NOT USE - Use the new module instead.
  */
 
-<?php
+
 
 $path_to_root = "../..";
 
@@ -136,7 +136,7 @@ class woo_prod_variation_attributes extends woo_interface
 		
 }
 
-?>
+
 
 
 $path_to_root = "../..";

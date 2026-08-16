@@ -86,13 +86,18 @@ class WooSyncStateMachine implements StagingStatusInterface, StateMachineInterfa
 
     public function getRequiredFieldsForStatus(string $toStatus): array
     {
-        return match ($toStatus) {
-            self::STATUS_MATCHED => ['fa_debtor_no', 'fa_branch_ref'],
-            self::STATUS_PROCESSING => ['fa_debtor_no'],
-            self::STATUS_PROCESSED => ['fa_order_no'],
-            self::STATUS_IMPORTED => ['fa_order_no', 'fa_debtor_no'],
-            default => [],
-        };
+        switch ($toStatus) {
+            case self::STATUS_MATCHED:
+                return ['fa_debtor_no', 'fa_branch_ref'];
+            case self::STATUS_PROCESSING:
+                return ['fa_debtor_no'];
+            case self::STATUS_PROCESSED:
+                return ['fa_order_no'];
+            case self::STATUS_IMPORTED:
+                return ['fa_order_no', 'fa_debtor_no'];
+            default:
+                return [];
+        }
     }
 
     public function validateEntityForStatus(string $toStatus, array $entity): array

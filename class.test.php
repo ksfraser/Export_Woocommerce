@@ -18,16 +18,16 @@ class test extends woo_interface {
 	function define_table()
 	{
 		woo_interface::define_table();
-		//$this->fields_array[] = array('name' => 'stock_id', 'label' => 'SKU', 'type' => , 'null' => 'NOT NULL',  'readwrite' => 'readwrite');
+		//$this->fields_array[] = array('name' => 'stock_id', 'label' => 'SKU', 'type' => '', 'null' => 'NOT NULL',  'readwrite' => 'readwrite');
 		//$sidl = 'varchar(' . STOCK_ID_LENGTH . ')';
 		//$descl = 'varchar(' . DESCRIPTION_LENGTH . ')';
 
 
 
-		//$this->fields_array[] = array('name' => 'variablename', 'type' => , 'null' => 'NOT NULL',  'readwrite' => 'readwrite');
-		//$this->fields_array[] = array('name' => 'stock_id', 'label' => 'Stock ID', 'type' => , 'null' => 'NOT NULL',  'readwrite' => 'readwrite', /*'foreign_obj' => 'woo_prod_variable_master', 'foreign_column' => 'stock_id'*/ 'comment' => 'Master Product stock_id');
-		//$this->fields_array[] = array('name' => 'sku', 'label' => 'SKU', 'type' => , 'null' => 'NOT NULL',  'readwrite' => 'readwrite', 'comment' => 'generated sku for this variable product' );
-		$this->fields_array[] = array('name' => 'description', 'label' => 'Description', 'type' => , 'null' => 'NOT NULL',  'readwrite' => 'readwrite' );
+		//$this->fields_array[] = array('name' => 'variablename', 'type' => '', 'null' => 'NOT NULL',  'readwrite' => 'readwrite');
+		//$this->fields_array[] = array('name' => 'stock_id', 'label' => 'Stock ID', 'type' => '', 'null' => 'NOT NULL',  'readwrite' => 'readwrite', /*'foreign_obj' => 'woo_prod_variable_master', 'foreign_column' => 'stock_id'*/ 'comment' => 'Master Product stock_id');
+		//$this->fields_array[] = array('name' => 'sku', 'label' => 'SKU', 'type' => '', 'null' => 'NOT NULL',  'readwrite' => 'readwrite', 'comment' => 'generated sku for this variable product' );
+		$this->fields_array[] = array('name' => 'description', 'label' => 'Description', 'type' => '', 'null' => 'NOT NULL',  'readwrite' => 'readwrite' );
 		$this->fields_array[] = array('name' => 'inserted_fa', 'label' => 'Inserted into FA', 'type' => 'bool', 'null' => 'NOT NULL',  'readwrite' => 'readwrite', 'default' => '0' );
 		$this->fields_array[] = array('name' => 'woo_id', 'label' => 'WooCommerce ID', 'type' => 'int(11)', 'null' => 'NOT NULL',  'readwrite' => 'readwrite', 'default' => '0' );
 
@@ -42,11 +42,11 @@ class test extends woo_interface {
 //		//$this->table_details['foreign'][0] = array( 'column' => "variablename", 'foreigntable' => "woo_prod_variable_variables", "foreigncolumn" => "variablename", "on_update" => "restrict", "on_delete" => "restrict" );	
 //		//$this->table_details['foreign'][1] = array( 'column' => "stock_id", 'foreigntable' => "woo_prod_variable_master", "foreigncolumn" => "stock_id", "on_update" => "restrict", "on_delete" => "restrict" );
 	}
-	function form_act
+	function form_act()
 	{
 		$this->call_table( 'form_act_completed', "Done It" );
 	}
-	function form_act_completed
+	function form_act_completed()
 	{	//Need to add code here to do whatever this submodule is for...
 	}
 	/*********************************************************************************//**

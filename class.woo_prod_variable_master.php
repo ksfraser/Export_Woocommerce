@@ -1,4 +1,4 @@
-<?php<?php
+<?php
 /**
  * @deprecated 
  * This file contains legacy code that has been superseded by the
@@ -15,7 +15,7 @@
  * DO NOT USE - Use the new module instead.
  */
 
-<?php
+
 
 $path_to_root = "../..";
 
@@ -33,7 +33,7 @@ require_once( 'class.woo_interface.php' );
 		//boolean -> 'bool',  'comment' => '
 		//array -> 'int(11)',  'foreign_obj' => '',  'comment' => '
 		//object -> 'int(11)',  'foreign_obj' => '',  'comment' => '
-		//read-only -> 'readwrite' = > 'readonly'
+		//read-only -> 'readwrite' => 'readonly'
 		//^ -> \t\$this->fields_array[] = array('name' => '
 		//;\t\/\/ -> ',
 		// --> 'comment' => '
@@ -114,7 +114,7 @@ class woo_prod_variable_master extends woo_interface {
 
 }
 
-?>
+
 
 
 $path_to_root = "../..";
@@ -133,7 +133,7 @@ require_once( 'class.woo_interface.php' );
 		//boolean -> 'bool',  'comment' => '
 		//array -> 'int(11)',  'foreign_obj' => '',  'comment' => '
 		//object -> 'int(11)',  'foreign_obj' => '',  'comment' => '
-		//read-only -> 'readwrite' = > 'readonly'
+		//read-only -> 'readwrite' => 'readonly'
 		//^ -> \t\$this->fields_array[] = array('name' => '
 		//;\t\/\/ -> ',
 		// --> 'comment' => '

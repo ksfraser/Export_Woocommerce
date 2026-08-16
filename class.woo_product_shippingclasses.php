@@ -1,4 +1,4 @@
-<?php<?php
+<?php
 /**
  * @deprecated 
  * This file contains legacy code that has been superseded by the
@@ -15,7 +15,7 @@
  * DO NOT USE - Use the new module instead.
  */
 
-<?php
+
 
 /*******************************************
  * If you change the list of properties below, ensure that you also modify
@@ -344,7 +344,7 @@ curl -X POST --insecure https://fhsws001.ksfraser.com/devel/fhs/wordpress/wp-jso
 	}
 }
 
-?>
+
 
 
 /*******************************************
