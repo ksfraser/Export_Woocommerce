@@ -31,9 +31,19 @@ class ProductDataBuilder
 
         if (isset($faData['instock'])) {
             $stockQuantity = (int)$faData['instock'];
+            $backorders = $faData['backorders'] ?? 'no';
+            $backordersAllowed = $backorders === 'yes' || $backorders === 'notify';
+
             $data['stock_quantity'] = $stockQuantity;
             $data['manage_stock'] = true;
-            $data['stock_status'] = $stockQuantity > 0 ? 'instock' : 'outofstock';
+
+            if ($stockQuantity > 0) {
+                $data['stock_status'] = 'instock';
+            } elseif ($backordersAllowed) {
+                $data['stock_status'] = 'onbackorder';
+            } else {
+                $data['stock_status'] = 'outofstock';
+            }
         }
 
         $this->addDimensionsAndWeight($stockId, $data, $faData);

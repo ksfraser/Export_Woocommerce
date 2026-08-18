@@ -44,9 +44,23 @@ class ProductExportService
 
         if (isset($faData['instock'])) {
             $stockQuantity = (int)$faData['instock'];
+            $backorders = $faData['backorders'] ?? 'no';
+            $backordersAllowed = $backorders === 'yes' || $backorders === 'notify';
+
             $data['stock_quantity'] = $stockQuantity;
             $data['manage_stock'] = true;
-            $data['stock_status'] = $stockQuantity > 0 ? 'instock' : 'outofstock';
+
+            if ($stockQuantity > 0) {
+                $data['stock_status'] = 'instock';
+            } elseif ($backordersAllowed) {
+                $data['stock_status'] = 'onbackorder';
+            } else {
+                $data['stock_status'] = 'outofstock';
+            }
+
+            if ($backorders !== 'no') {
+                $data['backorders'] = $backorders;
+            }
         }
 
         // Get dimensions and weight from FA Product Attributes / stock_master
@@ -531,13 +545,24 @@ class ProductExportService
         $createdVariations = [];
         foreach ($variations as $variation) {
             $variationStock = (int)($variation['stock'] ?? 0);
+            $backorders = $variation['backorders'] ?? $parentData['backorders'] ?? 'no';
+            $backordersAllowed = $backorders === 'yes' || $backorders === 'notify';
+
+            if ($variationStock > 0) {
+                $stockStatus = 'instock';
+            } elseif ($backordersAllowed) {
+                $stockStatus = 'onbackorder';
+            } else {
+                $stockStatus = 'outofstock';
+            }
+
             $variationData = [
                 'sku' => $variation['sku'],
                 'regular_price' => (string)($variation['price'] ?? '0'),
                 'attributes' => $variation['attributes'],
                 'manage_stock' => true,
                 'stock_quantity' => $variationStock,
-                'stock_status' => $variationStock > 0 ? 'instock' : 'outofstock'
+                'stock_status' => $stockStatus
             ];
 
             $result = $this->restClient->post(

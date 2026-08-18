@@ -282,8 +282,10 @@ class VariableProductService
             ];
 
             if (isset($skuRow['stock_quantity'])) {
-                $variation['stock_quantity'] = (int)$skuRow['stock_quantity'];
+                $stockQty = (int)$skuRow['stock_quantity'];
+                $variation['stock_quantity'] = $stockQty;
                 $variation['manage_stock'] = true;
+                $variation['stock_status'] = $stockQty > 0 ? 'instock' : 'outofstock';
             }
 
             $variation['attributes'] = $this->getAttributesForVariation($variationSku, $allAttributes);

@@ -87,8 +87,8 @@ class ProductDTO
     /** @var int|null */
     private $stockQty;
     
-    /** @var bool */
-    private $inStock;
+    /** @var string WC v3 stock status: 'instock', 'outofstock', 'onbackorder' */
+    private $stockStatus;
     
     /** @var string */
     private $backorders;
@@ -203,12 +203,26 @@ class ProductDTO
         $this->taxClass = $data['tax_class'] ?? '';
         $this->manageStock = !empty($data['manage_stock']);
         $this->stockQty = isset($data['stock_quantity']) ? (int)$data['stock_quantity'] : null;
-        $this->inStock = $data['in_stock'] ?? true;
-        
-        // Backorders
+
+        // Derive WC v3 stock_status from input or quantity
         $this->backorders = $data['backorders'] ?? 'no';
         $this->backordersAllowed = $this->backorders === 'yes' || $this->backorders === 'notify';
         $this->backordered = !empty($data['backordered']);
+
+        if (isset($data['stock_status']) && in_array($data['stock_status'], ['instock', 'outofstock', 'onbackorder'], true)) {
+            $this->stockStatus = $data['stock_status'];
+        } elseif ($this->stockQty !== null) {
+            if ($this->stockQty > 0) {
+                $this->stockStatus = 'instock';
+            } elseif ($this->backordersAllowed) {
+                $this->stockStatus = 'onbackorder';
+            } else {
+                $this->stockStatus = 'outofstock';
+            }
+        } else {
+            $this->stockStatus = 'instock';
+        }
+        
         $this->soldIndividually = !empty($data['sold_individually']);
         
         // Physical properties
@@ -369,9 +383,22 @@ class ProductDTO
         return $this->stockQty;
     }
 
+    /**
+     * Get WC v3 stock status string.
+     *
+     * @return string 'instock', 'outofstock', or 'onbackorder'
+     */
+    public function getStockStatus(): string
+    {
+        return $this->stockStatus;
+    }
+
+    /**
+     * @deprecated Use getStockStatus() instead
+     */
     public function getInStock(): bool
     {
-        return $this->inStock;
+        return $this->stockStatus === 'instock';
     }
 
     public function getBackorders(): string
@@ -530,7 +557,11 @@ class ProductDTO
         if ($this->stockQty !== null) {
             $data['stock_quantity'] = $this->stockQty;
             $data['manage_stock'] = true;
-            $data['stock_status'] = $this->stockQty > 0 ? 'instock' : 'outofstock';
+            $data['stock_status'] = $this->stockStatus;
+        }
+        
+        if ($this->backorders !== 'no') {
+            $data['backorders'] = $this->backorders;
         }
         
         if ($this->weight !== null) {
