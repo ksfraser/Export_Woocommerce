@@ -496,4 +496,186 @@ class ProductExportServiceTest extends TestCase
                 return [];
             });
     }
+
+    public function testExportProductDelegatesVariableTypeToExportVariableProduct(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(function ($sql) {
+                if (strpos($sql, 'SHOW TABLES') !== false) {
+                    if (strpos($sql, 'product_hierarchy') !== false) {
+                        return [['Tables_in_db' => '0_product_hierarchy']];
+                    }
+                    return [];
+                }
+                if (strpos($sql, 'parent_stock_id') !== false && strpos($sql, 'COUNT') !== false) {
+                    return [['cnt' => 2]];
+                }
+                if (strpos($sql, 'child_stock_id') !== false) {
+                    return [];
+                }
+                if (strpos($sql, 'product_attribute_assignments') !== false) {
+                    return [];
+                }
+                if (strpos($sql, 'stock_master') !== false && strpos($sql, 'SELECT') !== false && strpos($sql, 'ph.') === false) {
+                    return [['stock_id' => 'VAR-001', 'description' => 'Variable Product', 'price' => '10.00']];
+                }
+                if (strpos($sql, 'product_hierarchy') !== false && strpos($sql, 'ph.parent_stock_id') !== false) {
+                    return [
+                        ['stock_id' => 'VAR-001-S', 'description' => 'Small', 'price' => '10.00', 'instock' => 5],
+                        ['stock_id' => 'VAR-001-L', 'description' => 'Large', 'price' => '12.00', 'instock' => 3],
+                    ];
+                }
+                return [];
+            });
+
+        $this->mockRestClient->method('get')->willReturn([]);
+        $this->mockRestClient->method('post')->willReturn(['id' => 500]);
+
+        $result = $this->service->exportProduct([
+            'stock_id' => 'VAR-001',
+            'description' => 'Variable Product',
+        ]);
+
+        $this->assertArrayHasKey('parent_id', $result);
+        $this->assertEquals(500, $result['parent_id']);
+        $this->assertCount(2, $result['variations']);
+    }
+
+    public function testExportAllProductsIncludesVariableProducts(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(function ($sql) {
+                if (strpos($sql, 'stock_master') !== false && strpos($sql, 'DISTINCT') === false) {
+                    return [];
+                }
+                if (strpos($sql, 'DISTINCT') !== false) {
+                    return [['parent_stock_id' => 'VAR-001']];
+                }
+                if (strpos($sql, 'product_hierarchy') !== false && strpos($sql, 'DISTINCT') === false && strpos($sql, 'sm.stock_id') !== false) {
+                    return [
+                        ['stock_id' => 'VAR-001-S', 'description' => 'Small', 'price' => '10.00', 'instock' => 5],
+                    ];
+                }
+                if (strpos($sql, 'product_hierarchy') !== false && strpos($sql, 'DISTINCT') === false && strpos($sql, 'ph.parent_stock_id') !== false) {
+                    return [
+                        ['stock_id' => 'VAR-001-S', 'description' => 'Small', 'price' => '10.00', 'instock' => 5],
+                    ];
+                }
+                if (strpos($sql, 'stock_master') !== false && strpos($sql, 'SELECT') !== false && strpos($sql, 'DISTINCT') === false && strpos($sql, 'ph.') === false) {
+                    return [['stock_id' => 'VAR-001', 'description' => 'Variable Product', 'price' => '10.00']];
+                }
+                return [];
+            });
+
+        $this->mockRestClient->method('get')->willReturn([]);
+        $this->mockRestClient->method('post')->willReturn(['id' => 500]);
+
+        $result = $this->service->exportAllProducts();
+
+        $this->assertArrayHasKey('variable', $result);
+        $this->assertEquals(1, $result['variable']['exported']);
+        $this->assertEquals(1, $result['total_exported']);
+    }
+
+    public function testExportAllVariableProductsHandlesNoHierarchyTable(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(function ($sql) {
+                if (strpos($sql, 'SHOW TABLES') !== false) {
+                    return [];
+                }
+                return [];
+            });
+
+        $result = $this->service->exportAllVariableProducts();
+
+        $this->assertEquals(0, $result['exported']);
+        $this->assertEquals(0, $result['total']);
+    }
+
+    public function testExportVariableProductUpsertsExistingVariations(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(function ($sql) {
+                if (strpos($sql, 'stock_master') !== false) {
+                    return [['stock_id' => 'VAR-001', 'description' => 'Variable Product']];
+                }
+                return [];
+            });
+
+        $callCount = 0;
+        $this->mockRestClient->method('post')->willReturnCallback(function () use (&$callCount) {
+            $callCount++;
+            return ['id' => 500];
+        });
+        $this->mockRestClient->method('get')->willReturnCallback(function ($endpoint) {
+            if (strpos($endpoint, '/variations') !== false) {
+                return [['id' => 100, 'sku' => 'VAR-001-S']];
+            }
+            return [];
+        });
+        $this->mockRestClient->method('put')->willReturn(['id' => 100]);
+
+        $variations = [
+            ['sku' => 'VAR-001-S', 'regular_price' => '29.99', 'attributes' => [['name' => 'Size', 'option' => 'S']]],
+        ];
+
+        $result = $this->service->exportVariableProduct('VAR-001', $variations);
+
+        $this->assertEquals(500, $result['parent_id']);
+        $this->assertCount(1, $result['variations']);
+        $this->assertEquals(100, $result['variations'][0]);
+    }
+
+    public function testExportVariableProductHandlesBothKeyFormats(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(function ($sql) {
+                if (strpos($sql, 'stock_master') !== false) {
+                    return [['stock_id' => 'VAR-001', 'description' => 'Variable Product']];
+                }
+                return [];
+            });
+
+        $this->mockRestClient->method('post')->willReturn(['id' => 600]);
+        $this->mockRestClient->method('get')->willReturn([]);
+
+        $variations = [
+            ['sku' => 'VAR-001-S', 'stock_quantity' => 10, 'regular_price' => '29.99', 'attributes' => []],
+            ['sku' => 'VAR-001-M', 'stock' => 5, 'price' => '34.99', 'attributes' => []],
+        ];
+
+        $result = $this->service->exportVariableProduct('VAR-001', $variations);
+
+        $this->assertEquals(600, $result['parent_id']);
+        $this->assertCount(2, $result['variations']);
+    }
+
+    public function testExportVariableProductVariationErrorIsolation(): void
+    {
+        $this->mockDb->method('query')
+            ->willReturnCallback(function ($sql) {
+                if (strpos($sql, 'stock_master') !== false) {
+                    return [['stock_id' => 'VAR-001', 'description' => 'Variable Product']];
+                }
+                return [];
+            });
+
+        $this->mockRestClient->method('get')->willReturn([]);
+        $this->mockRestClient->method('post')->willReturnCallback(function ($endpoint) {
+            if (strpos($endpoint, '/variations') !== false && strpos($endpoint, 'products/') === 0) {
+                throw new \Exception('Variation API error');
+            }
+            return ['id' => 500];
+        });
+
+        $variations = [
+            ['sku' => 'VAR-001-S', 'price' => '29.99', 'attributes' => []],
+        ];
+
+        $result = $this->service->exportVariableProduct('VAR-001', $variations);
+
+        $this->assertEquals(500, $result['parent_id']);
+        $this->assertCount(0, $result['variations']);
+    }
 }

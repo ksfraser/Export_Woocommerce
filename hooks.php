@@ -40,7 +40,10 @@ class hooks_ksf_FA_Woocommerce extends hooks
 {
     /** @var string Module name */
     var $module_name = 'ksf_FA_Woocommerce';
-    
+
+    /** @var string Module version */
+    var $version = '2.4.3-0';
+
     /** @var string Module path */
     var $module_path;
 
@@ -324,7 +327,85 @@ class hooks_ksf_FA_Woocommerce extends hooks
             ),
         );
     }
-    
+
+    /**
+     * Return module constants for inter-module queries.
+     *
+     * @param array &$data Receives constants
+     * @param array|null $opts Options
+     * @return mixed
+     */
+    public function getModuleConstants(&$data, $opts = null)
+    {
+        $data['MODULE_NAME'] = $this->module_name;
+        $data['VERSION'] = $this->version;
+        $data['SS_WOOCOMMERCE_SYNC'] = SS_WOOCOMMERCE_SYNC;
+        return $data;
+    }
+
+    /**
+     * Return module capabilities for inter-module queries.
+     *
+     * @param array &$data Receives capabilities
+     * @param array|null $opts Options
+     * @return mixed
+     */
+    public function getModuleCapabilities(&$data, $opts = null)
+    {
+        $data['capabilities'] = [
+            'product_export',
+            'product_import',
+            'order_import',
+            'customer_import',
+            'category_export',
+            'variable_product_export',
+            'sku_recode',
+        ];
+        return $data;
+    }
+
+    /**
+     * Check whether this module has a specific capability.
+     *
+     * @param array &$data Result (hasCapability => bool)
+     * @param array|null $opts Must include 'capability' key
+     * @return mixed
+     */
+    public function hasCapability(&$data, $opts = null)
+    {
+        $capability = $opts['capability'] ?? '';
+        $capabilities = [
+            'product_export', 'product_import', 'order_import',
+            'customer_import', 'category_export', 'variable_product_export',
+            'sku_recode',
+        ];
+        $data['hasCapability'] = in_array($capability, $capabilities, true);
+        return $data;
+    }
+
+    /**
+     * Generic capability request responder.
+     *
+     * @param array &$data Receives response
+     * @param array|null $opts Options
+     * @return mixed
+     */
+    public function respondToCapabilityRequest(&$data, $opts = null)
+    {
+        $action = $opts['action'] ?? '';
+        switch ($action) {
+            case 'getModuleConstants':
+                return $this->getModuleConstants($data, $opts);
+            case 'getModuleCapabilities':
+                return $this->getModuleCapabilities($data, $opts);
+            case 'hasCapability':
+                return $this->hasCapability($data, $opts);
+            default:
+                $data['error'] = 'Unknown action: ' . $action;
+                return $data;
+        }
+    }
+
     /**
      * Helper to get service instances (cached)
      */
@@ -366,6 +447,9 @@ class hooks_ksf_FA_Woocommerce extends hooks
         $productExporter = new \ksfraser\FrontAccounting\Woocommerce\ProductExportService(
             $restClient, $logger, $dbInterface
         );
+        $variableProductService = new \ksfraser\FrontAccounting\Woocommerce\VariableProductService(
+            $restClient, $logger, $dbInterface
+        );
         $orderExporter = new \ksfraser\FrontAccounting\Woocommerce\OrderExporter(
             $restClient, $logger, $dbInterface
         );
@@ -397,6 +481,7 @@ class hooks_ksf_FA_Woocommerce extends hooks
         
         $GLOBALS['woo_sync_services_cache'] = array(
             'productExporter' => $productExporter,
+            'variableProductService' => $variableProductService,
             'orderExporter' => $orderExporter,
             'customerExporter' => $customerExporter,
             'categoryExporter' => $categoryExporter,

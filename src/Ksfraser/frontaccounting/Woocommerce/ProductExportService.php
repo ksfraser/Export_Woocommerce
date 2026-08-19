@@ -499,11 +499,17 @@ class ProductExportService
     public function exportProduct(array $productData): array
     {
         $wooData = $this->buildProductData($productData);
-        
+
+        if (($wooData['type'] ?? 'simple') === 'variable') {
+            $stockId = $productData['stock_id'] ?? '';
+            $variations = $this->productVariations($stockId);
+            return $this->exportVariableProduct($stockId, $variations);
+        }
+
         if (isset($productData['woo_id']) && $productData['woo_id']) {
             return $this->restClient->put('products/' . $productData['woo_id'], $wooData);
         }
-        
+
         return $this->restClient->post('products', $wooData);
     }
 
@@ -541,10 +547,11 @@ class ProductExportService
 
         $parentWooId = $parentResult['id'];
 
-        // Create variations
-        $createdVariations = [];
+        // Create/update variations
+        $savedVariations = [];
         foreach ($variations as $variation) {
-            $variationStock = (int)($variation['stock'] ?? 0);
+            $variationStock = (int)($variation['stock_quantity'] ?? $variation['stock'] ?? 0);
+            $variationPrice = (string)($variation['regular_price'] ?? $variation['price'] ?? '0');
             $backorders = $variation['backorders'] ?? $parentData['backorders'] ?? 'no';
             $backordersAllowed = $backorders === 'yes' || $backorders === 'notify';
 
@@ -558,26 +565,52 @@ class ProductExportService
 
             $variationData = [
                 'sku' => $variation['sku'],
-                'regular_price' => (string)($variation['price'] ?? '0'),
-                'attributes' => $variation['attributes'],
+                'regular_price' => $variationPrice,
+                'attributes' => $variation['attributes'] ?? [],
                 'manage_stock' => true,
                 'stock_quantity' => $variationStock,
                 'stock_status' => $stockStatus
             ];
 
-            $result = $this->restClient->post(
-                'products/' . $parentWooId . '/variations',
-                $variationData
-            );
+            $existingVariationId = $variation['woo_id'] ?? null;
+            if (!$existingVariationId) {
+                $existing = $this->restClient->get(
+                    'products/' . $parentWooId . '/variations',
+                    ['sku' => $variation['sku']]
+                );
+                if (!empty($existing) && isset($existing[0]['id'])) {
+                    $existingVariationId = $existing[0]['id'];
+                }
+            }
 
-            if (isset($result['id'])) {
-                $createdVariations[] = $result['id'];
+            try {
+                if ($existingVariationId) {
+                    $result = $this->restClient->put(
+                        'products/' . $parentWooId . '/variations/' . $existingVariationId,
+                        $variationData
+                    );
+                } else {
+                    $result = $this->restClient->post(
+                        'products/' . $parentWooId . '/variations',
+                        $variationData
+                    );
+                }
+
+                if (isset($result['id'])) {
+                    $savedVariations[] = $result['id'];
+                }
+            } catch (\Exception $e) {
+                $this->logger->error(sprintf(
+                    'Failed to save variation %s: %s',
+                    $variation['sku'],
+                    $e->getMessage()
+                ));
             }
         }
 
         return [
             'parent_id' => $parentWooId,
-            'variations' => $createdVariations
+            'variations' => $savedVariations
         ];
     }
 
@@ -1060,11 +1093,63 @@ class ProductExportService
 
         $newResult = $this->exportAllSimpleProducts();
         $updateResult = $this->updateSimpleProducts($debugMode);
+        $variableResult = $this->exportAllVariableProducts();
 
         return [
             'new' => $newResult,
             'updates' => $updateResult,
-            'total_exported' => $newResult['exported'] + $updateResult['updated'],
+            'variable' => $variableResult,
+            'total_exported' => $newResult['exported'] + $updateResult['updated'] + $variableResult['exported'],
+        ];
+    }
+
+    /**
+     * Export all variable products (parents with child variations)
+     *
+     * @since 1.0.0
+     * @return array
+     */
+    public function exportAllVariableProducts(): array
+    {
+        $this->logger->info('Starting export of all variable products');
+
+        if (!$this->productHierarchyTableExists()) {
+            return ['exported' => 0, 'failed' => 0, 'total' => 0];
+        }
+
+        $parents = $this->db->query(sprintf(
+            "SELECT DISTINCT ph.parent_stock_id
+             FROM %s ph
+             JOIN %s sm ON sm.stock_id = ph.parent_stock_id
+             WHERE sm.inactive = 0",
+            $this->getTableName('product_hierarchy'),
+            $this->getTableName('stock_master')
+        ));
+
+        $exported = 0;
+        $failed = 0;
+
+        foreach ($parents as $parent) {
+            $stockId = $parent['parent_stock_id'];
+            $variations = $this->productVariations($stockId);
+
+            $result = $this->exportVariableProduct($stockId, $variations);
+            if (isset($result['parent_id'])) {
+                $exported++;
+            } else {
+                $failed++;
+                $this->logger->warning(sprintf(
+                    'Failed to export variable product %s: %s',
+                    $stockId,
+                    $result['error'] ?? 'unknown error'
+                ));
+            }
+        }
+
+        return [
+            'exported' => $exported,
+            'failed' => $failed,
+            'total' => count($parents),
         ];
     }
 

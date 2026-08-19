@@ -10,10 +10,13 @@
 
 $page_security = 'SA_WOOCOMMERCE_SYNC';
 
-require_once '../includes/api/load.inc';  // FA standard bootstrap
+require_once '../includes/session.inc';
+add_access_extensions();
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+include_once($path_to_root . '/modules/ksf_FA_Woocommerce/hooks.php');
 
-// Get services from the module hooks instance
-$services = woo_services();
+$hooks = new hooks_ksf_FA_Woocommerce();
+$services = $hooks->get_services();
 $dispatcher = $services['dispatcher'];
 $customerStaging = $services['customerStaging'];
 $logger = $services['logger'];
