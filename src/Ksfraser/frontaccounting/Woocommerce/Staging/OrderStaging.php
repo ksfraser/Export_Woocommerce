@@ -60,10 +60,15 @@ class OrderStaging
             ],
         ]);
 
-        return $this->stageOrderLegacy($wooOrder, $stagedCustomerId);
+        if ($hookResult !== null) {
+            return (int)($hookResult['id'] ?? 0);
+        }
+
+        // Fallback: local staging table if ISU module is not installed
+        return $this->stageOrderFallback($wooOrder, $stagedCustomerId);
     }
 
-    private function stageOrderLegacy(array $wooOrder, ?int $stagedCustomerId = null): int
+    private function stageOrderFallback(array $wooOrder, ?int $stagedCustomerId = null): int
     {
         $prefix = $this->db->getPrefix();
         $billing = $wooOrder['billing'] ?? [];
@@ -97,10 +102,10 @@ class OrderStaging
             'status' => self::STATUS_CUSTOMER_MATCHED,
         ]);
 
-        $this->linkCustomerLegacy($stagingId, $faDebtorNo, $faBranchRef);
+        $this->linkCustomerFallback($stagingId, $faDebtorNo, $faBranchRef);
     }
 
-    private function linkCustomerLegacy(int $stagingId, int $faDebtorNo, string $faBranchRef): void
+    private function linkCustomerFallback(int $stagingId, int $faDebtorNo, string $faBranchRef): void
     {
         $prefix = $this->db->getPrefix();
 
@@ -159,10 +164,10 @@ class OrderStaging
             'status' => self::STATUS_IMPORTED,
         ]);
 
-        $this->markImportedLegacy($stagingId, $faOrderNo);
+        $this->markImportedFallback($stagingId, $faOrderNo);
     }
 
-    private function markImportedLegacy(int $stagingId, int $faOrderNo): void
+    private function markImportedFallback(int $stagingId, int $faOrderNo): void
     {
         $prefix = $this->db->getPrefix();
 
@@ -187,10 +192,10 @@ class OrderStaging
             'error' => $error,
         ]);
 
-        $this->markErrorLegacy($stagingId, $error);
+        $this->markErrorFallback($stagingId, $error);
     }
 
-    private function markErrorLegacy(int $stagingId, string $error): void
+    private function markErrorFallback(int $stagingId, string $error): void
     {
         $prefix = $this->db->getPrefix();
 
