@@ -466,9 +466,6 @@ class hooks_ksf_FA_Woocommerce extends hooks
             $dbInterface, $logger
         );
         
-        $customerStaging->ensureStagingTable();
-        $orderStaging->ensureStagingTable();
-        
         $dispatcher = new \ksfraser\FrontAccounting\Woocommerce\UI\ImportExportDispatcher(
             $productExporter,
             $orderExporter,

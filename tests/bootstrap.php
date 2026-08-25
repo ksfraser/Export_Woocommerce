@@ -130,5 +130,14 @@ if (file_exists($autoloader)) {
     }
 }
 
+// hook_invoke test double — records calls for ISU gateway tests
+if (!function_exists('hook_invoke')) {
+    function hook_invoke($ext, $method, &$data, $opts = null)
+    {
+        $GLOBALS['ksf_test_hook_calls'][] = [$ext, $method, $data, $opts];
+        $data = [];
+    }
+}
+
 // Also require the hooks file for testing
 require_once __DIR__ . '/../hooks.php';

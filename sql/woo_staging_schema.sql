@@ -1,8 +1,4 @@
 -- DEPRECATED: WooCommerce Import Staging Tables
--- @since 1.0.0 (removed in favor of ksf_FA_ImportStagingProcessing generic module)
---
--- Local staging tables are now created on-demand by OrderStaging::ensureStagingTable()
--- and CustomerStaging::ensureStagingTable() for backwards compatibility during transition.
--- The primary staging tables are managed by the ksf_FA_ImportStagingProcessing module.
---
--- See patches/002-source-updated-at-and-upsert.md for the generic schema.
+-- @since 1.0.0
+-- @deprecated 1.2.0 All staging is now handled by ksf_FA_ImportStagingProcessing.
+-- No proprietary staging tables are created or used by this module.

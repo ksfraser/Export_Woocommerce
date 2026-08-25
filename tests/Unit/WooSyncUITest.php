@@ -8,6 +8,7 @@ use ksfraser\FrontAccounting\Woocommerce\ProductService;
 use ksfraser\FrontAccounting\Woocommerce\ProductExportService;
 use ksfraser\FrontAccounting\Woocommerce\Staging\OrderStaging;
 use ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging;
+use ksfraser\FrontAccounting\Woocommerce\Staging\IsuStagingGateway;
 use ksfraser\FrontAccounting\Woocommerce\Dao\SyncDao;
 use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
 use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
@@ -20,6 +21,7 @@ class WooSyncUITest extends TestCase
     private $mockRestClient;
     private $mockLogger;
     private $mockDb;
+    private $mockGateway;
     private $dispatcher;
     private $customerStaging;
 
@@ -28,16 +30,17 @@ class WooSyncUITest extends TestCase
         $this->mockRestClient = $this->createMock(WooRestClientInterface::class);
         $this->mockLogger = $this->createMock(LoggerInterface::class);
         $this->mockDb = $this->createMock(DatabaseInterface::class);
-        
+        $this->mockGateway = $this->createMock(IsuStagingGateway::class);
+
         $this->mockDb->method('escape')->willReturnCallback(function($v) { return addslashes($v); });
         $this->mockDb->method('getPrefix')->willReturn('0_');
-        // Don't set default query/execute - set per test with willReturnCallback
-        
+
         $this->customerStaging = new \ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging(
             $this->mockDb,
-            $this->mockLogger
+            $this->mockLogger,
+            $this->mockGateway
         );
-        
+
         $productExporter = new \ksfraser\FrontAccounting\Woocommerce\ProductExportService(
             $this->mockRestClient,
             $this->mockLogger,
@@ -58,7 +61,7 @@ class WooSyncUITest extends TestCase
             $this->mockLogger,
             $this->mockDb
         );
-        
+
         $this->dispatcher = new \ksfraser\FrontAccounting\Woocommerce\UI\ImportExportDispatcher(
             $productExporter,
             $orderExporter,
@@ -72,36 +75,36 @@ class WooSyncUITest extends TestCase
     {
         $this->mockRestClient->method('get')->willReturn([]);
         $this->mockRestClient->method('post')->willReturn([]);
-        
+
         $result = $this->dispatcher->dispatch('export_products');
-        
+
         $this->assertIsArray($result);
     }
 
     public function testDispatchExportCategories(): void
     {
         $this->mockRestClient->method('post')->willReturn([]);
-        
+
         $result = $this->dispatcher->dispatch('export_categories');
-        
+
         $this->assertIsArray($result);
     }
 
     public function testDispatchImportOrders(): void
     {
         $this->mockRestClient->method('get')->willReturn([]);
-        
+
         $result = $this->dispatcher->dispatch('import_orders', ['limit' => 5]);
-        
+
         $this->assertIsArray($result);
     }
 
     public function testDispatchImportCustomers(): void
     {
         $this->mockRestClient->method('get')->willReturn([]);
-        
+
         $result = $this->dispatcher->dispatch('import_customers', ['limit' => 5]);
-        
+
         $this->assertIsArray($result);
     }
 
@@ -109,9 +112,9 @@ class WooSyncUITest extends TestCase
     {
         $this->mockRestClient->method('get')->willReturn([]);
         $this->mockRestClient->method('post')->willReturn([]);
-        
+
         $result = $this->dispatcher->dispatch('sync_all');
-        
+
         $this->assertArrayHasKey('products', $result);
         $this->assertArrayHasKey('categories', $result);
         $this->assertArrayHasKey('orders', $result);
@@ -121,40 +124,29 @@ class WooSyncUITest extends TestCase
     public function testDispatchUnknownAction(): void
     {
         $result = $this->dispatcher->dispatch('unknown_action');
-        
+
         $this->assertArrayHasKey('error', $result);
     }
 
     public function testGetStagedCustomersForUI(): void
     {
-        // Mock empty staging table
-        $this->mockDb->method('query')
-            ->willReturnCallback(function($sql) {
-                if (strpos($sql, 'woo_customer_staging') !== false) {
-                    return []; // No staged customers
-                }
-                return [];
-            });
-        
+        $this->mockGateway->method('getStagedCustomers')
+            ->willReturn([]);
+
         $result = $this->dispatcher->getStagedCustomersForUI();
-        
+
         $this->assertIsArray($result);
     }
 
     public function testRenderStagingUIRendersTable(): void
     {
-        $this->mockDb->method('query')
-            ->willReturnCallback(function($sql) {
-                if (strpos($sql, 'woo_customer_staging') !== false) {
-                    return []; // Empty table
-                }
-                return [];
-            });
-        
+        $this->mockGateway->method('getStagedCustomers')
+            ->willReturn([]);
+
         ob_start();
         $this->dispatcher->renderStagingUI();
         $output = ob_get_clean();
-        
+
         $this->assertStringContainsString('Staged Customers', $output);
         $this->assertStringContainsString('<table', $output);
     }
@@ -170,109 +162,52 @@ class WooSyncUITest extends TestCase
                 'company' => 'Test Co'
             ]
         ];
-        
-        // Create a complete mock with all methods
-        $mockDb = new class implements \ksfraser\FrontAccounting\Woocommerce\DatabaseInterface {
-            private $callCount = 0;
-            
-            public function query(string $sql): array
-            {
-                if (strpos($sql, 'LAST_INSERT_ID') !== false) {
-                    return [['id' => 456]];
-                }
-                return [];
-            }
-            
-            public function execute(string $sql): bool
-            {
-                return true;
-            }
-            
-            public function getPrefix(): string
-            {
-                return '0_';
-            }
-            
-            public function escape(string $value): string
-            {
-                return addslashes($value);
-            }
-        };
-        
-        $customerStaging = new \ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging(
-            $mockDb,
-            $this->mockLogger
-        );
-        
-        $stagingId = $customerStaging->stageCustomer($wooData);
-        
+
+        $this->mockGateway->expects($this->once())
+            ->method('stageCustomer')
+            ->with($this->callback(function ($data) {
+                return $data['source_customer_id'] === '123'
+                    && $data['email'] === 'test@example.com';
+            }))
+            ->willReturn(456);
+
+        $stagingId = $this->customerStaging->stageCustomer($wooData);
+
         $this->assertEquals(456, $stagingId);
     }
 
     public function testFindMatchesWithEmptyTable(): void
     {
-        $this->mockDb->method('query')
-            ->willReturnOnConsecutiveCalls(
-                [['id' => 1, 'email' => 'test@example.com']], // SELECT staged
-                [] // No candidates
-            );
-        
+        $this->mockGateway->method('getCustomerById')
+            ->willReturn(null);
+
         $matches = $this->customerStaging->findMatches(1);
-        
+
         $this->assertEmpty($matches);
     }
 
     public function testImportCustomerNewCustomer(): void
     {
-        // Create mock that returns predictable values
-        $mockDb = new class implements \ksfraser\FrontAccounting\Woocommerce\DatabaseInterface {
-            private $queryCount = 0;
-            
-            public function query(string $sql): array
-            {
-                $this->queryCount++;
-                if ($this->queryCount === 1) {
-                    // SELECT staged record
-                    return [['id' => 1, 'raw_data' => json_encode([
-                        'billing' => [
-                            'email' => 'new@example.com',
-                            'first_name' => 'Jane',
-                            'last_name' => 'Doe'
-                        ]
-                    ])]];
-                } elseif ($this->queryCount === 2) {
-                    // LAST_INSERT_ID for customer
-                    return [['id' => 100]];
-                } elseif ($this->queryCount === 3) {
-                    // LAST_INSERT_ID for branch
-                    return [['id' => 200]];
-                }
-                return [];
-            }
-            
-            public function execute(string $sql): bool
-            {
-                return true;
-            }
-            
-            public function getPrefix(): string
-            {
-                return '0_';
-            }
-            
-            public function escape(string $value): string
-            {
-                return addslashes($value);
-            }
-        };
-        
-        $customerStaging = new \ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging(
-            $mockDb,
-            $this->mockLogger
-        );
-        
-        $result = $customerStaging->importCustomer(1, null);
-        
+        $this->mockGateway->method('getCustomerById')
+            ->willReturn([
+                'id' => 1,
+                'customer_email' => 'new@example.com',
+                'raw_json' => json_encode(['billing' => [
+                    'email' => 'new@example.com',
+                    'first_name' => 'Jane',
+                    'last_name' => 'Doe',
+                ]]),
+            ]);
+
+        $this->mockGateway->expects($this->once())
+            ->method('updateStatus');
+
+        $this->mockDb->method('query')
+            ->willReturn([['id' => 100]]);
+        $this->mockDb->method('execute')->willReturn(true);
+
+        $result = $this->customerStaging->importCustomer(1, null);
+
         $this->assertArrayHasKey('debtor_no', $result);
         $this->assertArrayHasKey('branch_ref', $result);
         $this->assertEquals(100, $result['debtor_no']);
@@ -280,50 +215,27 @@ class WooSyncUITest extends TestCase
 
     public function testImportCustomerExistingCustomer(): void
     {
-        $mockDb = new class implements \ksfraser\FrontAccounting\Woocommerce\DatabaseInterface {
-            private $queryCount = 0;
-            
-            public function query(string $sql): array
-            {
-                $this->queryCount++;
-                if ($this->queryCount === 1) {
-                    return [['id' => 1, 'raw_data' => json_encode([
-                        'billing' => ['email' => 'existing@example.com']
-                    ])]];
-                } elseif ($this->queryCount === 2) {
-                    return [['id' => 200]]; // LAST_INSERT_ID for branch
-                }
-                return [];
-            }
-            
-            public function execute(string $sql): bool
-            {
-                return true;
-            }
-            
-            public function getPrefix(): string
-            {
-                return '0_';
-            }
-            
-            public function escape(string $value): string
-            {
-                return addslashes($value);
-            }
-        };
-        
-        $customerStaging = new \ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging(
-            $mockDb,
-            $this->mockLogger
-        );
-        
-        $result = $customerStaging->importCustomer(1, 50); // Use existing customer 50
-        
+        $this->mockGateway->method('getCustomerById')
+            ->willReturn([
+                'id' => 1,
+                'customer_email' => 'existing@example.com',
+                'raw_json' => json_encode(['billing' => [
+                    'email' => 'existing@example.com',
+                ]]),
+            ]);
+
+        $this->mockGateway->expects($this->once())
+            ->method('updateStatus');
+
+        $this->mockDb->method('execute')->willReturn(true);
+
+        $result = $this->customerStaging->importCustomer(1, 50);
+
         $this->assertArrayHasKey('debtor_no', $result);
         $this->assertArrayHasKey('branch_ref', $result);
         $this->assertEquals(50, $result['debtor_no']);
     }
-    
+
     public function testSimulateFormSubmission(): void
     {
         $_POST = [
@@ -331,50 +243,29 @@ class WooSyncUITest extends TestCase
             'staging_id' => '1',
             'match_1' => 'new'
         ];
-        
-        $mockDb = new class implements \ksfraser\FrontAccounting\Woocommerce\DatabaseInterface {
-            private $queryCount = 0;
-            
-            public function query(string $sql): array
-            {
-                $this->queryCount++;
-                if ($this->queryCount === 1) {
-                    return [['id' => 1, 'raw_data' => json_encode([
-                        'billing' => ['email' => 'form@example.com', 'first_name' => 'Form', 'last_name' => 'Test']
-                    ])]];
-                } elseif ($this->queryCount === 2) {
-                    return [['id' => 999]];
-                } elseif ($this->queryCount === 3) {
-                    return [['id' => 888]];
-                }
-                return [];
-            }
-            
-            public function execute(string $sql): bool
-            {
-                return true;
-            }
-            
-            public function getPrefix(): string
-            {
-                return '0_';
-            }
-            
-            public function escape(string $value): string
-            {
-                return addslashes($value);
-            }
-        };
-        
-        $customerStaging = new \ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging(
-            $mockDb,
-            $this->mockLogger
-        );
-        
-        $result = $customerStaging->importCustomer(1, null);
-        
+
+        $this->mockGateway->method('getCustomerById')
+            ->willReturn([
+                'id' => 1,
+                'customer_email' => 'form@example.com',
+                'raw_json' => json_encode(['billing' => [
+                    'email' => 'form@example.com',
+                    'first_name' => 'Form',
+                    'last_name' => 'Test',
+                ]]),
+            ]);
+
+        $this->mockGateway->expects($this->once())
+            ->method('updateStatus');
+
+        $this->mockDb->method('query')
+            ->willReturn([['id' => 999]]);
+        $this->mockDb->method('execute')->willReturn(true);
+
+        $result = $this->customerStaging->importCustomer(1, null);
+
         $this->assertArrayHasKey('debtor_no', $result);
-        
+
         unset($_POST);
     }
 }

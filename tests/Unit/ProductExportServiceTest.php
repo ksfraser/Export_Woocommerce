@@ -510,6 +510,12 @@ class ProductExportServiceTest extends TestCase
                 if (strpos($sql, 'parent_stock_id') !== false && strpos($sql, 'COUNT') !== false) {
                     return [['cnt' => 2]];
                 }
+                if (strpos($sql, 'product_hierarchy') !== false && strpos($sql, 'ph.parent_stock_id') !== false) {
+                    return [
+                        ['stock_id' => 'VAR-001-S', 'description' => 'Small', 'price' => '10.00', 'instock' => 5],
+                        ['stock_id' => 'VAR-001-L', 'description' => 'Large', 'price' => '12.00', 'instock' => 3],
+                    ];
+                }
                 if (strpos($sql, 'child_stock_id') !== false) {
                     return [];
                 }
@@ -518,12 +524,6 @@ class ProductExportServiceTest extends TestCase
                 }
                 if (strpos($sql, 'stock_master') !== false && strpos($sql, 'SELECT') !== false && strpos($sql, 'ph.') === false) {
                     return [['stock_id' => 'VAR-001', 'description' => 'Variable Product', 'price' => '10.00']];
-                }
-                if (strpos($sql, 'product_hierarchy') !== false && strpos($sql, 'ph.parent_stock_id') !== false) {
-                    return [
-                        ['stock_id' => 'VAR-001-S', 'description' => 'Small', 'price' => '10.00', 'instock' => 5],
-                        ['stock_id' => 'VAR-001-L', 'description' => 'Large', 'price' => '12.00', 'instock' => 3],
-                    ];
                 }
                 return [];
             });
@@ -545,24 +545,39 @@ class ProductExportServiceTest extends TestCase
     {
         $this->mockDb->method('query')
             ->willReturnCallback(function ($sql) {
-                if (strpos($sql, 'stock_master') !== false && strpos($sql, 'DISTINCT') === false) {
+                if (strpos($sql, 'SHOW TABLES') !== false) {
+                    if (strpos($sql, 'product_hierarchy') !== false) {
+                        return [['Tables_in_db' => '0_product_hierarchy']];
+                    }
                     return [];
                 }
                 if (strpos($sql, 'DISTINCT') !== false) {
                     return [['parent_stock_id' => 'VAR-001']];
                 }
-                if (strpos($sql, 'product_hierarchy') !== false && strpos($sql, 'DISTINCT') === false && strpos($sql, 'sm.stock_id') !== false) {
+                if (strpos($sql, 'COUNT') !== false && strpos($sql, 'parent_stock_id') !== false) {
+                    return [['cnt' => 1]];
+                }
+                if (strpos($sql, 'child_stock_id') !== false) {
+                    return [];
+                }
+                if (strpos($sql, 'product_hierarchy') !== false && strpos($sql, 'ph.parent_stock_id') !== false) {
                     return [
                         ['stock_id' => 'VAR-001-S', 'description' => 'Small', 'price' => '10.00', 'instock' => 5],
                     ];
                 }
-                if (strpos($sql, 'product_hierarchy') !== false && strpos($sql, 'DISTINCT') === false && strpos($sql, 'ph.parent_stock_id') !== false) {
+                if (strpos($sql, 'product_hierarchy') !== false && strpos($sql, 'sm.stock_id') !== false) {
                     return [
                         ['stock_id' => 'VAR-001-S', 'description' => 'Small', 'price' => '10.00', 'instock' => 5],
                     ];
                 }
-                if (strpos($sql, 'stock_master') !== false && strpos($sql, 'SELECT') !== false && strpos($sql, 'DISTINCT') === false && strpos($sql, 'ph.') === false) {
+                if (strpos($sql, 'product_attribute_assignments') !== false) {
+                    return [];
+                }
+                if (strpos($sql, 'stock_master') !== false && strpos($sql, 'SELECT') !== false && strpos($sql, 'ph.') === false) {
                     return [['stock_id' => 'VAR-001', 'description' => 'Variable Product', 'price' => '10.00']];
+                }
+                if (strpos($sql, 'stock_master') !== false && strpos($sql, 'DISTINCT') === false && strpos($sql, 'WHERE') === false) {
+                    return [];
                 }
                 return [];
             });

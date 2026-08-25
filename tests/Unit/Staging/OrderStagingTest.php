@@ -1,17 +1,9 @@
 <?php
 
 namespace ksfraser\FrontAccounting\Woocommerce\Tests\Unit\Staging;
-use ksfraser\FrontAccounting\Woocommerce\UI\ImportExportDispatcher;
-use ksfraser\FrontAccounting\Woocommerce\OrderExporter;
-use ksfraser\FrontAccounting\Woocommerce\CustomerExporter;
-use ksfraser\FrontAccounting\Woocommerce\CategoryExporter;
-use ksfraser\FrontAccounting\Woocommerce\ProductService;
-use ksfraser\FrontAccounting\Woocommerce\ProductExportService;
-use ksfraser\FrontAccounting\Woocommerce\Staging\CustomerStaging;
-use ksfraser\FrontAccounting\Woocommerce\Dao\SyncDao;
-use ksfraser\FrontAccounting\Woocommerce\WooRestClientInterface;
 
 use ksfraser\FrontAccounting\Woocommerce\Staging\OrderStaging;
+use ksfraser\FrontAccounting\Woocommerce\Staging\IsuStagingGateway;
 use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
 use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
 use PHPUnit\Framework\TestCase;
@@ -20,16 +12,16 @@ class OrderStagingTest extends TestCase
 {
     private $db;
     private $logger;
+    private $gateway;
     private $orderStaging;
 
     protected function setUp(): void
     {
         $this->db = $this->createMock(DatabaseInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
-        
-        $this->db->method('getPrefix')->willReturn('fa_');
-        
-        $this->orderStaging = new OrderStaging($this->db, $this->logger);
+        $this->gateway = $this->createMock(IsuStagingGateway::class);
+
+        $this->orderStaging = new OrderStaging($this->db, $this->logger, $this->gateway);
     }
 
     public function testStatusConstants(): void
@@ -50,18 +42,20 @@ class OrderStagingTest extends TestCase
             'total' => '99.99',
             'currency' => 'USD'
         ];
-        
-        $this->db->expects($this->once())
-            ->method('execute')
-            ->with($this->stringContains("INSERT INTO fa_woo_order_staging"));
-        
-        $this->db->expects($this->once())
-            ->method('query')
-            ->with($this->stringContains("LAST_INSERT_ID"))
-            ->willReturn([['id' => 1]]);
-        
+
+        $this->gateway->expects($this->once())
+            ->method('stageOrder')
+            ->with(
+                $this->callback(function ($orderData) {
+                    return $orderData['source_order_id'] === '12345'
+                        && $orderData['total_amount'] == 99.99;
+                }),
+                $this->isType('array')
+            )
+            ->willReturn(1);
+
         $id = $this->orderStaging->stageOrder($wooOrder);
-        
+
         $this->assertEquals(1, $id);
     }
 
@@ -73,97 +67,113 @@ class OrderStagingTest extends TestCase
             'billing' => ['email' => 'customer@example.com'],
             'total' => '150.00'
         ];
-        
-        $this->db->expects($this->once())
-            ->method('execute')
-            ->with($this->stringContains("12345"));
-        
-        $this->db->expects($this->once())
-            ->method('query')
-            ->with($this->stringContains("LAST_INSERT_ID"))
-            ->willReturn([['id' => 2]]);
-        
+
+        $this->gateway->expects($this->once())
+            ->method('stageOrder')
+            ->willReturn(2);
+
         $id = $this->orderStaging->stageOrder($wooOrder, 5);
-        
+
         $this->assertEquals(2, $id);
+    }
+
+    public function testStageOrderReturnsZeroOnFailure(): void
+    {
+        $wooOrder = [
+            'id' => 12345,
+            'status' => 'pending',
+            'billing' => ['email' => 'test@example.com'],
+            'total' => '99.99',
+            'currency' => 'USD'
+        ];
+
+        $this->gateway->expects($this->once())
+            ->method('stageOrder')
+            ->willReturn(0);
+
+        $id = $this->orderStaging->stageOrder($wooOrder);
+
+        $this->assertEquals(0, $id);
     }
 
     public function testLinkCustomer(): void
     {
-        $this->db->expects($this->once())
-            ->method('escape')
-            ->willReturnCallback(function($v) { return $v; });
-        
-        $this->db->expects($this->once())
-            ->method('execute')
-            ->with($this->callback(function($sql) {
-                return strpos($sql, "fa_debtor_no = 10") !== false
-                    && strpos($sql, "BR001") !== false
-                    && strpos($sql, "customer_matched") !== false;
-            }));
-        
+        $this->gateway->expects($this->once())
+            ->method('updateStatus')
+            ->with(
+                1,
+                OrderStaging::STATUS_CUSTOMER_MATCHED,
+                $this->callback(function ($fields) {
+                    return $fields['fa_debtor_no'] === '10'
+                        && $fields['fa_branch_ref'] === 'BR001';
+                })
+            );
+
         $this->orderStaging->linkCustomer(1, 10, 'BR001');
     }
 
     public function testGetStagedOrders(): void
     {
         $expected = [
-            ['id' => 1, 'woo_order_id' => 123, 'status' => 'staged'],
-            ['id' => 2, 'woo_order_id' => 456, 'status' => 'customer_pending']
+            ['id' => 1, 'source_order_id' => '123', 'status' => 'staged'],
+            ['id' => 2, 'source_order_id' => '456', 'status' => 'customer_pending']
         ];
-        
-        $this->db->expects($this->once())
-            ->method('query')
-            ->with($this->stringContains("SELECT * FROM fa_woo_order_staging"))
+
+        $this->gateway->expects($this->once())
+            ->method('getStagedOrders')
             ->willReturn($expected);
-        
+
         $result = $this->orderStaging->getStagedOrders();
-        
+
         $this->assertEquals($expected, $result);
     }
 
     public function testGetOrdersPendingCustomer(): void
     {
-        $this->db->expects($this->once())
-            ->method('query')
-            ->with($this->callback(function($sql) {
-                return strpos($sql, "fa_debtor_no IS NULL") !== false
-                    && strpos($sql, "customer_pending") !== false;
-            }))
-            ->willReturn([]);
-        
-        $this->orderStaging->getOrdersPendingCustomer();
+        $this->gateway->method('getByStatus')
+            ->willReturnCallback(function ($status) {
+                if ($status === 'staged') {
+                    return [['id' => 1, 'status' => 'staged']];
+                }
+                if ($status === 'customer_pending') {
+                    return [['id' => 2, 'status' => 'customer_pending']];
+                }
+                return [];
+            });
+
+        $result = $this->orderStaging->getOrdersPendingCustomer();
+
+        $this->assertCount(2, $result);
     }
 
     public function testGetOrdersReadyForImport(): void
     {
         $expected = [
-            ['id' => 1, 'woo_order_id' => 123, 'fa_debtor_no' => 10]
+            ['id' => 1, 'source_order_id' => '123', 'fa_debtor_no' => '10']
         ];
-        
-        $this->db->expects($this->once())
-            ->method('query')
-            ->with($this->callback(function($sql) {
-                return strpos($sql, "status = 'customer_matched'") !== false
-                    && strpos($sql, "fa_debtor_no IS NOT NULL") !== false;
-            }))
+
+        $this->gateway->expects($this->once())
+            ->method('getByStatus')
+            ->with(OrderStaging::STATUS_CUSTOMER_MATCHED)
             ->willReturn($expected);
-        
+
         $result = $this->orderStaging->getOrdersReadyForImport();
-        
+
         $this->assertEquals($expected, $result);
     }
 
     public function testMarkImported(): void
     {
-        $this->db->expects($this->once())
-            ->method('execute')
-            ->with($this->callback(function($sql) {
-                return strpos($sql, "imported = 1") !== false
-                    && strpos($sql, "fa_order_no = 999") !== false
-                    && strpos($sql, "status = 'imported'") !== false;
-            }));
-        
+        $this->gateway->expects($this->once())
+            ->method('updateStatus')
+            ->with(
+                1,
+                OrderStaging::STATUS_IMPORTED,
+                $this->callback(function ($fields) {
+                    return $fields['fa_invoice_no'] === '999';
+                })
+            );
+
         $this->orderStaging->markImported(1, 999);
     }
 
@@ -172,11 +182,17 @@ class OrderStagingTest extends TestCase
         $this->logger->expects($this->once())
             ->method('error')
             ->with($this->stringContains("error: Failed to process"));
-        
-        $this->db->expects($this->once())
-            ->method('execute')
-            ->with($this->stringContains("status = 'error'"));
-        
+
+        $this->gateway->expects($this->once())
+            ->method('updateStatus')
+            ->with(
+                1,
+                OrderStaging::STATUS_ERROR,
+                $this->callback(function ($fields) {
+                    return $fields['error_log'] === 'Failed to process';
+                })
+            );
+
         $this->orderStaging->markError(1, "Failed to process");
     }
 
@@ -190,9 +206,9 @@ class OrderStagingTest extends TestCase
             'total' => '250.00',
             'currency' => 'USD'
         ];
-        
+
         $payment = $this->orderStaging->extractPaymentDetails($wooOrder);
-        
+
         $this->assertEquals('stripe', $payment['method']);
         $this->assertEquals('Credit Card (Stripe)', $payment['method_title']);
         $this->assertEquals('txn_123456', $payment['transaction_id']);
@@ -206,9 +222,9 @@ class OrderStagingTest extends TestCase
         $wooOrder = [
             'id' => 123
         ];
-        
+
         $payment = $this->orderStaging->extractPaymentDetails($wooOrder);
-        
+
         $this->assertEquals('', $payment['method']);
         $this->assertEquals('', $payment['method_title']);
         $this->assertEquals('', $payment['transaction_id']);
@@ -223,15 +239,22 @@ class OrderStagingTest extends TestCase
             ['id' => 1, 'billing' => ['email' => 'a@test.com']],
             ['id' => 2, 'billing' => ['email' => 'b@test.com']]
         ];
-        
+
         $customerStagingIds = ['a@test.com' => 5];
-        
-        $this->db->method('execute');
-        $this->db->method('query')
-            ->willReturnOnConsecutiveCalls([['id' => 1]], [['id' => 2]]);
-        
+
+        $this->gateway->method('stageOrder')
+            ->willReturnOnConsecutiveCalls(1, 2);
+
+        $this->gateway->expects($this->once())
+            ->method('updateStatus')
+            ->with(
+                2,
+                OrderStaging::STATUS_CUSTOMER_PENDING,
+                $this->anything()
+            );
+
         $stagedIds = $this->orderStaging->stageOrders($orders, $customerStagingIds);
-        
+
         $this->assertCount(2, $stagedIds);
         $this->assertEquals([1, 2], $stagedIds);
     }
@@ -241,34 +264,32 @@ class OrderStagingTest extends TestCase
         $stagedOrders = [
             [
                 'id' => 1,
-                'woo_order_id' => 123,
                 'raw_data' => json_encode(['id' => 123]),
-                'fa_debtor_no' => 10,
+                'fa_debtor_no' => '10',
                 'fa_branch_ref' => 'BR001'
             ],
             [
                 'id' => 2,
-                'woo_order_id' => 456,
                 'raw_data' => json_encode(['id' => 456]),
-                'fa_debtor_no' => 11,
+                'fa_debtor_no' => '11',
                 'fa_branch_ref' => 'BR002'
             ]
         ];
-        
-        $this->db->method('query')
-            ->with($this->stringContains("customer_matched"))
+
+        $this->gateway->method('getByStatus')
+            ->with(OrderStaging::STATUS_CUSTOMER_MATCHED)
             ->willReturn($stagedOrders);
-        
+
+        $this->gateway->method('updateStatus');
+
         $callbackCalled = 0;
-        $callback = function($wooData, $faDebtorNo, $faBranchRef) use (&$callbackCalled) {
+        $callback = function ($wooData, $faDebtorNo, $faBranchRef) use (&$callbackCalled) {
             $callbackCalled++;
             return 1000 + $callbackCalled;
         };
-        
-        $this->db->method('execute');
-        
+
         $results = $this->orderStaging->processPendingOrders($callback);
-        
+
         $this->assertEquals(2, $results['processed']);
         $this->assertEmpty($results['errors']);
         $this->assertEquals(2, $callbackCalled);
@@ -276,17 +297,22 @@ class OrderStagingTest extends TestCase
 
     public function testProcessPendingOrdersWithErrors(): void
     {
-        $this->db->method('query')
-            ->willReturnCallback(fn($sql) => match(true) {
-                strpos($sql, 'status') !== false && strpos($sql, 'customer_matched') !== false => [
-                    ['id' => 1, 'woo_order_id' => 100, 'raw_data' => json_encode(['id' => 100, 'total' => '50.00']), 'fa_debtor_no' => 10, 'fa_branch_ref' => 'BR001'],
-                ],
-                default => [],
-            });
+        $stagedOrders = [
+            [
+                'id' => 1,
+                'raw_data' => json_encode(['id' => 100, 'total' => '50.00']),
+                'fa_debtor_no' => '10',
+                'fa_branch_ref' => 'BR001',
+            ],
+        ];
 
-        $this->db->method('execute')->willReturn(true);
+        $this->gateway->method('getByStatus')
+            ->with(OrderStaging::STATUS_CUSTOMER_MATCHED)
+            ->willReturn($stagedOrders);
 
-        $callback = function($order) {
+        $this->gateway->method('updateStatus');
+
+        $callback = function ($order) {
             throw new \Exception('Test error');
         };
 
@@ -295,9 +321,8 @@ class OrderStagingTest extends TestCase
         $this->assertCount(1, $result['errors']);
     }
 
-    public function testEnsureStagingTable(): void
+    public function testEnsureStagingTableIsNoOp(): void
     {
-        $this->db->method('execute')->willReturn(true);
         $this->orderStaging->ensureStagingTable();
         $this->assertTrue(true);
     }

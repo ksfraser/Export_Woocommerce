@@ -249,6 +249,7 @@ CustomerMatcher → Fuzzy Score → Match/Create FA Debtor
 ### 5.3 External Dependencies
 
 - **ksf_FA_ImportStagingProcessing** — Generic staging infrastructure (order/customer staging)
+- **ksfraser/staging-dto** — Shared DTO package for ISU integration (StagingOrder, StagingCustomer, etc.)
 - **ksf_FA_Common** — `ItemEventPublisher` for event-driven sync
 - **ksf_modules_common** — Shared FA interface classes
 - **Automattic\WooCommerce** — PHP client for WooCommerce REST API

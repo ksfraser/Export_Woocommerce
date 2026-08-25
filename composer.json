@@ -6,6 +6,10 @@
         {
             "type": "path",
             "url": "/home/kevin/Documents/ksf_Workflow"
+        },
+        {
+            "type": "path",
+            "url": "../ksf_staging_dto"
         }
     ],
     "require": {
@@ -15,7 +19,8 @@
         "ext-mysqli": "*",
         "automattic/woocommerce": "^3.1",
         "ksfraser/fa-hooks": "dev-main",
-        "ksfraser/ksf-modules-dao": "^0.3"
+        "ksfraser/ksf-modules-dao": "^0.3",
+        "ksfraser/staging-dto": "dev-main"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.5",

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ee3957d2b1a6e064c36f14067d2a0149",
+    "content-hash": "60a058858dbe54c549fba3d0973bf0cf",
     "packages": [
         {
             "name": "automattic/woocommerce",
@@ -144,6 +144,45 @@
                 "source": "https://github.com/ksfraser/ksf_ModulesDAO/tree/v0.3.4"
             },
             "time": "2026-02-06T23:58:40+00:00"
+        },
+        {
+            "name": "ksfraser/staging-dto",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../ksf_staging_dto",
+                "reference": "d66c98d1a09ae58dc0137b501663eed6d968aa5d"
+            },
+            "require": {
+                "php": ">=7.3"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.6"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Ksfraser\\StagingDto\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Ksfraser\\StagingDto\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "KSFraser",
+                    "email": "ksfraser@example.com"
+                }
+            ],
+            "description": "Data Transfer Objects for ISU staging integration",
+            "transport-options": {
+                "relative": true
+            }
         }
     ],
     "packages-dev": [
@@ -1981,6 +2020,7 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "ksfraser/fa-hooks": 20,
+        "ksfraser/staging-dto": 20,
         "ksfraser/famock": 20
     },
     "prefer-stable": false,

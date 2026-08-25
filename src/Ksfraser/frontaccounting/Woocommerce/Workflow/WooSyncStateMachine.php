@@ -16,8 +16,8 @@ use ksfraser\FrontAccounting\Woocommerce\Workflow\StateMachine\StateMachineTrait
  * through the staging pipeline.
  * 
  * Entity Types:
- * - customer_staging: woo_customer → woo_customer_staging → fa_debtor
- * - order_staging: woo_order → woo_order_staging → fa_sales_order
+ * - customer: woo_customer → ISU staging_customers → fa_debtor
+ * - order: woo_order → ISU staging_transactions → fa_sales_order
  * 
  * Uses generic status interfaces from ksf-workflow package:
  * - Ksfraser\Workflow\Status\StagingStatusInterface

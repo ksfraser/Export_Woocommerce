@@ -1,16 +1,33 @@
 <?php
+declare(strict_types=1);
+
 namespace ksfraser\FrontAccounting\Woocommerce\Staging;
 
 use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
 use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
-use ksfraser\FrontAccounting\Woocommerce\DTO\OrderDTO;
 
+/**
+ * Order staging for WooCommerce → ISU integration.
+ *
+ * Stages WooCommerce order data into ISU (ksf_FA_ImportStagingProcessing)
+ * and manages the order import lifecycle (staged → customer_matched → imported).
+ *
+ * All staging operations go through IsuStagingGateway. This class
+ * handles WooCommerce-specific order business logic.
+ *
+ * @package Ksfraser\FrontAccounting\Woocommerce\Staging
+ * @since 1.0.0
+ */
 class OrderStaging
 {
+    /** @var DatabaseInterface */
     private $db;
+
+    /** @var LoggerInterface */
     private $logger;
 
-    private const HOOK_MODULE = 'ksf_FA_ImportStagingProcessing';
+    /** @var IsuStagingGateway */
+    private $gateway;
 
     public const STATUS_STAGED = 'staged';
     public const STATUS_CUSTOMER_PENDING = 'customer_pending';
@@ -18,201 +35,143 @@ class OrderStaging
     public const STATUS_IMPORTED = 'imported';
     public const STATUS_ERROR = 'error';
 
-    public function __construct(DatabaseInterface $db, LoggerInterface $logger)
-    {
+    public function __construct(
+        DatabaseInterface $db,
+        LoggerInterface $logger,
+        ?IsuStagingGateway $gateway = null
+    ) {
         $this->db = $db;
         $this->logger = $logger;
+        $this->gateway = $gateway ?? new IsuStagingGateway();
     }
 
-    private function callStagingHook(string $action, array $params = []): ?array
-    {
-        if (!function_exists('hook_invoke')) {
-            return null;
-        }
-        $data = [];
-        $params['request'] = 'staging:' . $action;
-        hook_invoke(self::HOOK_MODULE, 'respondToCapabilityRequest', $data, $params);
-        if (!empty($data['success']) && isset($data['result'])) {
-            return is_array($data['result']) ? $data['result'] : ['id' => $data['result']];
-        }
-        if (!empty($data['error'])) {
-            $this->logger->warning('Staging hook error: ' . $data['error']);
-        }
-        return null;
-    }
-
+    /**
+     * Stage a WooCommerce order into ISU.
+     *
+     * @param array $wooOrder WooCommerce order data
+     * @param int|null $stagedCustomerId Not used (kept for backward compat)
+     * @return int ISU staging ID
+     */
     public function stageOrder(array $wooOrder, ?int $stagedCustomerId = null): int
     {
         $billing = $wooOrder['billing'] ?? [];
         $customerName = trim(($billing['first_name'] ?? '') . ' ' . ($billing['last_name'] ?? ''));
 
-        $hookResult = $this->callStagingHook('stageTransaction', [
-            'source' => 'woocommerce',
-            'transaction' => [
-                'source_transaction_id' => (string)($wooOrder['id'] ?? 0),
-                'source_order_id' => (string)($wooOrder['id'] ?? 0),
-                'total_amount' => (float)($wooOrder['total'] ?? 0),
-                'currency' => $wooOrder['currency'] ?? 'USD',
-                'customer_email' => $billing['email'] ?? '',
-                'customer_name' => $customerName,
-                'raw_json' => json_encode($wooOrder),
-                'status' => self::STATUS_STAGED,
-            ],
-        ]);
-
-        if ($hookResult !== null) {
-            return (int)($hookResult['id'] ?? 0);
+        $lineItems = [];
+        foreach ($wooOrder['line_items'] ?? [] as $item) {
+            $lineItems[] = [
+                'source_id' => (string)($item['id'] ?? 0),
+                'transaction_source_id' => (string)($wooOrder['id'] ?? 0),
+                'sku' => $item['sku'] ?? '',
+                'name' => $item['name'] ?? '',
+                'description' => $item['name'] ?? '',
+                'quantity' => (int)($item['quantity'] ?? 1),
+                'unit_price' => (float)($item['price'] ?? 0),
+                'discount' => (float)($item['total_discount'] ?? 0),
+                'tax' => 0,
+            ];
         }
 
-        // Fallback: local staging table if ISU module is not installed
-        return $this->stageOrderFallback($wooOrder, $stagedCustomerId);
+        $stagingId = $this->gateway->stageOrder([
+            'source_order_id' => (string)($wooOrder['id'] ?? 0),
+            'total_amount' => (float)($wooOrder['total'] ?? 0),
+            'currency' => $wooOrder['currency'] ?? 'USD',
+            'customer_name' => $customerName,
+            'status' => self::STATUS_STAGED,
+            'created_at' => $wooOrder['date_created'] ?? '',
+        ], $lineItems);
+
+        if ($stagingId > 0) {
+            return $stagingId;
+        }
+
+        $this->logger->warning('Failed to stage order via ISU hook: ' . ($wooOrder['id'] ?? 'unknown'));
+        return 0;
     }
 
-    private function stageOrderFallback(array $wooOrder, ?int $stagedCustomerId = null): int
-    {
-        $prefix = $this->db->getPrefix();
-        $billing = $wooOrder['billing'] ?? [];
-
-        $sql = sprintf(
-            "INSERT INTO %swoo_order_staging
-            (woo_order_id, woo_status, email, total, currency,
-             raw_data, staged_at, customer_staging_id, status)
-            VALUES (%d, '%s', '%s', '%s', '%s', '%s', NOW(), %s, '%s')",
-            $prefix,
-            (int)($wooOrder['id'] ?? 0),
-            $this->db->escape($wooOrder['status'] ?? 'pending'),
-            $this->db->escape($billing['email'] ?? ''),
-            $this->db->escape((string)($wooOrder['total'] ?? 0)),
-            $this->db->escape($wooOrder['currency'] ?? 'USD'),
-            $this->db->escape(json_encode($wooOrder)),
-            $stagedCustomerId ? (int)$stagedCustomerId : 'NULL',
-            self::STATUS_STAGED
-        );
-
-        $this->db->execute($sql);
-
-        $result = $this->db->query("SELECT LAST_INSERT_ID() as id");
-        return (int)($result[0]['id'] ?? 0);
-    }
-
+    /**
+     * Link a customer to a staged order.
+     *
+     * @param int $stagingId ISU staging ID
+     * @param int $faDebtorNo FA debtor number
+     * @param string $faBranchRef FA branch reference
+     * @return void
+     */
     public function linkCustomer(int $stagingId, int $faDebtorNo, string $faBranchRef): void
     {
-        $this->callStagingHook('updateStatus', [
-            'id' => $stagingId,
-            'status' => self::STATUS_CUSTOMER_MATCHED,
+        $this->gateway->updateStatus($stagingId, self::STATUS_CUSTOMER_MATCHED, [
+            'fa_debtor_no' => (string)$faDebtorNo,
+            'fa_branch_ref' => $faBranchRef,
         ]);
-
-        $this->linkCustomerFallback($stagingId, $faDebtorNo, $faBranchRef);
     }
 
-    private function linkCustomerFallback(int $stagingId, int $faDebtorNo, string $faBranchRef): void
-    {
-        $prefix = $this->db->getPrefix();
-
-        $sql = sprintf(
-            "UPDATE %swoo_order_staging
-             SET fa_debtor_no = %d, fa_branch_ref = '%s', status = '%s'
-             WHERE id = %d",
-            $prefix,
-            $faDebtorNo,
-            $this->db->escape($faBranchRef),
-            self::STATUS_CUSTOMER_MATCHED,
-            $stagingId
-        );
-
-        $this->db->execute($sql);
-    }
-
+    /**
+     * Get all staged orders from ISU (not yet imported).
+     *
+     * @return array
+     */
     public function getStagedOrders(): array
     {
-        $prefix = $this->db->getPrefix();
-        return $this->db->query(sprintf(
-            "SELECT * FROM %swoo_order_staging WHERE imported = 0 ORDER BY staged_at DESC",
-            $prefix
-        ));
+        return $this->gateway->getStagedOrders();
     }
 
+    /**
+     * Get orders pending customer matching.
+     *
+     * @return array
+     */
     public function getOrdersPendingCustomer(): array
     {
-        $prefix = $this->db->getPrefix();
-        return $this->db->query(sprintf(
-            "SELECT * FROM %swoo_order_staging
-             WHERE status IN ('%s', '%s') AND fa_debtor_no IS NULL
-             ORDER BY staged_at DESC",
-            $prefix,
-            self::STATUS_STAGED,
-            self::STATUS_CUSTOMER_PENDING
-        ));
+        $staged = $this->gateway->getByStatus(self::STATUS_STAGED);
+        $pending = $this->gateway->getByStatus(self::STATUS_CUSTOMER_PENDING);
+        return array_merge($staged, $pending);
     }
 
+    /**
+     * Get orders ready for import (customer matched, not yet imported).
+     *
+     * @return array
+     */
     public function getOrdersReadyForImport(): array
     {
-        $prefix = $this->db->getPrefix();
-        return $this->db->query(sprintf(
-            "SELECT * FROM %swoo_order_staging
-             WHERE status = '%s' AND fa_debtor_no IS NOT NULL AND imported = 0
-             ORDER BY staged_at ASC",
-            $prefix,
-            self::STATUS_CUSTOMER_MATCHED
-        ));
+        return $this->gateway->getByStatus(self::STATUS_CUSTOMER_MATCHED);
     }
 
+    /**
+     * Mark a staged order as imported.
+     *
+     * @param int $stagingId ISU staging ID
+     * @param int $faOrderNo FA order/invoice number
+     * @return void
+     */
     public function markImported(int $stagingId, int $faOrderNo): void
     {
-        $this->callStagingHook('updateStatus', [
-            'id' => $stagingId,
-            'status' => self::STATUS_IMPORTED,
+        $this->gateway->updateStatus($stagingId, self::STATUS_IMPORTED, [
+            'fa_invoice_no' => (string)$faOrderNo,
         ]);
-
-        $this->markImportedFallback($stagingId, $faOrderNo);
     }
 
-    private function markImportedFallback(int $stagingId, int $faOrderNo): void
-    {
-        $prefix = $this->db->getPrefix();
-
-        $sql = sprintf(
-            "UPDATE %swoo_order_staging
-             SET imported = 1, imported_at = NOW(), fa_order_no = %d, status = '%s'
-             WHERE id = %d",
-            $prefix,
-            $faOrderNo,
-            self::STATUS_IMPORTED,
-            $stagingId
-        );
-
-        $this->db->execute($sql);
-    }
-
+    /**
+     * Mark a staged order as errored.
+     *
+     * @param int $stagingId ISU staging ID
+     * @param string $error Error message
+     * @return void
+     */
     public function markError(int $stagingId, string $error): void
     {
-        $this->callStagingHook('updateStatus', [
-            'id' => $stagingId,
-            'status' => self::STATUS_ERROR,
-            'error' => $error,
+        $this->gateway->updateStatus($stagingId, self::STATUS_ERROR, [
+            'error_log' => $error,
         ]);
-
-        $this->markErrorFallback($stagingId, $error);
-    }
-
-    private function markErrorFallback(int $stagingId, string $error): void
-    {
-        $prefix = $this->db->getPrefix();
-
-        $sql = sprintf(
-            "UPDATE %swoo_order_staging
-             SET status = '%s'
-             WHERE id = %d",
-            $prefix,
-            self::STATUS_ERROR,
-            $stagingId
-        );
-
-        $this->db->execute($sql);
-
         $this->logger->error("Order staging {$stagingId} error: " . $error);
     }
 
+    /**
+     * Extract payment details from a WooCommerce order.
+     *
+     * @param array $wooOrder WooCommerce order data
+     * @return array Payment details
+     */
     public function extractPaymentDetails(array $wooOrder): array
     {
         return [
@@ -225,6 +184,13 @@ class OrderStaging
         ];
     }
 
+    /**
+     * Stage multiple WooCommerce orders.
+     *
+     * @param array $wooOrders Array of WooCommerce order data
+     * @param array $customerStagingIds Map of email => staging ID
+     * @return array Array of ISU staging IDs
+     */
     public function stageOrders(array $wooOrders, array $customerStagingIds = []): array
     {
         $stagedIds = [];
@@ -238,71 +204,50 @@ class OrderStaging
             $stagingId = $this->stageOrder($order, $customerStagingId);
             $stagedIds[] = $stagingId;
 
-            if ($status === self::STATUS_CUSTOMER_PENDING) {
-                $this->updateStatus($stagingId, self::STATUS_CUSTOMER_PENDING);
+            if ($status === self::STATUS_CUSTOMER_PENDING && $stagingId > 0) {
+                $this->gateway->updateStatus($stagingId, self::STATUS_CUSTOMER_PENDING);
             }
         }
 
         return $stagedIds;
     }
 
-    private function updateStatus(int $stagingId, string $status): void
-    {
-        $prefix = $this->db->getPrefix();
-        $this->db->execute(sprintf(
-            "UPDATE %swoo_order_staging SET status = '%s' WHERE id = %d",
-            $prefix,
-            $this->db->escape($status),
-            $stagingId
-        ));
-    }
-
-    public function ensureStagingTable(): void
-    {
-        $prefix = $this->db->getPrefix();
-        $this->db->execute(sprintf(
-            "CREATE TABLE IF NOT EXISTS %swoo_order_staging (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                woo_order_id INT NOT NULL,
-                woo_status VARCHAR(50),
-                email VARCHAR(255),
-                total DECIMAL(15,4),
-                currency VARCHAR(10),
-                raw_data TEXT,
-                customer_staging_id INT NULL,
-                status ENUM('staged', 'customer_pending', 'customer_matched', 'imported', 'error') DEFAULT 'staged',
-                imported TINYINT DEFAULT 0,
-                imported_at DATETIME NULL,
-                fa_order_no INT NULL,
-                fa_debtor_no INT NULL,
-                fa_branch_ref VARCHAR(100) NULL,
-                staged_at DATETIME,
-                INDEX idx_woo_order (woo_order_id),
-                INDEX idx_customer_pending (status, fa_debtor_no),
-                INDEX idx_imported (imported)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
-            $prefix
-        ));
-    }
-
+    /**
+     * Process orders ready for import using a callback.
+     *
+     * @param callable $processCallback function(wooOrder, debtorNo, branchRef): int
+     * @return array ['processed' => int, 'errors' => array]
+     */
     public function processPendingOrders(callable $processCallback): array
     {
         $orders = $this->getOrdersReadyForImport();
         $results = ['processed' => 0, 'errors' => []];
 
         foreach ($orders as $order) {
-            $wooData = json_decode($order['raw_data'], true);
+            $rawJson = json_decode($order['raw_json'] ?? '{}', true);
+            $wooData = !empty($rawJson) ? $rawJson : $order;
 
             try {
-                $faOrderNo = $processCallback($wooData, $order['fa_debtor_no'], $order['fa_branch_ref']);
-                $this->markImported($order['id'], $faOrderNo);
+                $faOrderNo = $processCallback(
+                    $wooData,
+                    (int)($order['fa_debtor_no'] ?? 0),
+                    (string)($order['fa_branch_ref'] ?? '')
+                );
+                $this->markImported((int)$order['id'], $faOrderNo);
                 $results['processed']++;
             } catch (\Exception $e) {
-                $this->markError($order['id'], $e->getMessage());
+                $this->markError((int)$order['id'], $e->getMessage());
                 $results['errors'][] = $e->getMessage();
             }
         }
 
         return $results;
+    }
+
+    /**
+     * @deprecated 1.2.0 Use IsuStagingGateway instead.
+     */
+    public function ensureStagingTable(): void
+    {
     }
 }

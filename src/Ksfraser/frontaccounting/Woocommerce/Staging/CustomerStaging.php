@@ -1,45 +1,55 @@
 <?php
+declare(strict_types=1);
+
 namespace ksfraser\FrontAccounting\Woocommerce\Staging;
 
 use ksfraser\FrontAccounting\Woocommerce\DatabaseInterface;
 use ksfraser\FrontAccounting\Woocommerce\LoggerInterface;
 
+/**
+ * Customer staging for WooCommerce → ISU integration.
+ *
+ * Stages WooCommerce customer data into ISU (ksf_FA_ImportStagingProcessing)
+ * and provides customer matching against existing FA debtors_master.
+ *
+ * All staging operations go through IsuStagingGateway. This class
+ * handles WooCommerce-specific customer business logic (matching, FA creation).
+ *
+ * @package Ksfraser\FrontAccounting\Woocommerce\Staging
+ * @since 1.0.0
+ */
 class CustomerStaging
 {
+    /** @var DatabaseInterface */
     private $db;
+
+    /** @var LoggerInterface */
     private $logger;
 
-    private const HOOK_MODULE = 'ksf_FA_ImportStagingProcessing';
+    /** @var IsuStagingGateway */
+    private $gateway;
 
     private const SCORE_EMAIL = 30.0;
     private const SCORE_PHONE = 25.0;
     private const SCORE_NAME_COMPANY = 20.0;
     private const SCORE_ADDRESS = 15.0;
-    private const SCORE_HIGH_MATCH = 50.0;
 
-    public function __construct(DatabaseInterface $db, LoggerInterface $logger)
-    {
+    public function __construct(
+        DatabaseInterface $db,
+        LoggerInterface $logger,
+        ?IsuStagingGateway $gateway = null
+    ) {
         $this->db = $db;
         $this->logger = $logger;
+        $this->gateway = $gateway ?? new IsuStagingGateway();
     }
 
-    private function callStagingHook(string $action, array $params = []): ?array
-    {
-        if (!function_exists('hook_invoke')) {
-            return null;
-        }
-        $data = [];
-        $params['request'] = 'staging:' . $action;
-        hook_invoke(self::HOOK_MODULE, 'respondToCapabilityRequest', $data, $params);
-        if (!empty($data['success']) && isset($data['result'])) {
-            return is_array($data['result']) ? $data['result'] : ['id' => $data['result']];
-        }
-        if (!empty($data['error'])) {
-            $this->logger->warning('Staging hook error: ' . $data['error']);
-        }
-        return null;
-    }
-
+    /**
+     * Stage a WooCommerce customer into ISU.
+     *
+     * @param array $wooData WooCommerce customer/order data with billing key
+     * @return int ISU staging ID
+     */
     public function stageCustomer(array $wooData): int
     {
         $billing = $wooData['billing'] ?? $wooData;
@@ -48,76 +58,48 @@ class CustomerStaging
             ? $billing['company']
             : trim(($billing['first_name'] ?? '') . ' ' . ($billing['last_name'] ?? ''));
 
-        $this->callStagingHook('stageCustomer', [
-            'source' => 'woocommerce',
-            'customer' => [
-                'source_customer_id' => (string)($billing['customer_id'] ?? $wooData['customer_id'] ?? 0),
-                'name' => $customerName,
-                'email' => $billing['email'] ?? '',
-                'phone' => $billing['phone'] ?? '',
-                'address_line1' => $billing['address_1'] ?? '',
-                'address_line2' => $billing['address_2'] ?? '',
-                'city' => $billing['city'] ?? '',
-                'province' => $billing['state'] ?? '',
-                'postal_code' => $billing['postcode'] ?? '',
-                'country' => $billing['country'] ?? '',
-                'raw_json' => json_encode($wooData),
-            ],
+        $stagingId = $this->gateway->stageCustomer([
+            'source_customer_id' => (string)($billing['customer_id'] ?? $wooData['customer_id'] ?? $wooData['id'] ?? 0),
+            'name' => $customerName,
+            'email' => $billing['email'] ?? '',
+            'phone' => $billing['phone'] ?? '',
+            'address_line1' => $billing['address_1'] ?? '',
+            'address_line2' => $billing['address_2'] ?? '',
+            'city' => $billing['city'] ?? '',
+            'province' => $billing['state'] ?? '',
+            'postal_code' => $billing['postcode'] ?? '',
+            'country' => $billing['country'] ?? '',
+            'raw_json' => json_encode($wooData),
         ]);
 
-        return $this->stageCustomerLegacy($wooData);
+        if ($stagingId > 0) {
+            return $stagingId;
+        }
+
+        $this->logger->warning('Failed to stage customer via ISU hook, ID: '
+            . ($billing['customer_id'] ?? $wooData['customer_id'] ?? 'unknown'));
+        return 0;
     }
 
-    private function stageCustomerLegacy(array $wooData): int
-    {
-        $prefix = $this->db->getPrefix();
-        $billing = $wooData['billing'] ?? $wooData;
-
-        $sql = sprintf(
-            "INSERT INTO %swoo_customer_staging
-            (woo_customer_id, woo_order_id, email, phone, first_name, last_name,
-             company, address1, address2, city, state, postcode, country,
-             raw_data, staged_at)
-            VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', NOW())",
-            $prefix,
-            $this->db->escape($billing['customer_id'] ?? $wooData['customer_id'] ?? 0),
-            $this->db->escape($wooData['id'] ?? 0),
-            $this->db->escape($billing['email'] ?? ''),
-            $this->db->escape($billing['phone'] ?? ''),
-            $this->db->escape($billing['first_name'] ?? ''),
-            $this->db->escape($billing['last_name'] ?? ''),
-            $this->db->escape($billing['company'] ?? ''),
-            $this->db->escape($billing['address_1'] ?? ''),
-            $this->db->escape($billing['address_2'] ?? ''),
-            $this->db->escape($billing['city'] ?? ''),
-            $this->db->escape($billing['state'] ?? ''),
-            $this->db->escape($billing['postcode'] ?? ''),
-            $this->db->escape($billing['country'] ?? ''),
-            $this->db->escape(json_encode($wooData))
-        );
-
-        $this->db->execute($sql);
-
-        $result = $this->db->query("SELECT LAST_INSERT_ID() as id");
-        return (int)($result[0]['id'] ?? 0);
-    }
-
+    /**
+     * Find matching FA customers for a staged WooCommerce customer.
+     *
+     * Queries ISU staging record, then matches against debtors_master/branches.
+     *
+     * @param int $stagingId ISU staging ID
+     * @return array Matching candidates sorted by score descending
+     */
     public function findMatches(int $stagingId): array
     {
-        $prefix = $this->db->getPrefix();
+        $staged = $this->gateway->getCustomerById($stagingId);
 
-        $staged = $this->db->query(sprintf(
-            "SELECT * FROM %swoo_customer_staging WHERE id = %d",
-            $prefix, $stagingId
-        ));
-
-        if (empty($staged)) {
+        if ($staged === null) {
             return [];
         }
 
-        $data = $staged[0];
-        $matches = [];
+        $data = $this->mapIsuToLegacyFields($staged);
 
+        $prefix = $this->db->getPrefix();
         $sql = sprintf(
             "SELECT
                 dm.debtor_no,
@@ -137,6 +119,7 @@ class CustomerStaging
         );
 
         $candidates = $this->db->query($sql);
+        $matches = [];
 
         foreach ($candidates as $candidate) {
             $score = $this->calculateMatchScore($data, $candidate);
@@ -156,6 +139,79 @@ class CustomerStaging
         usort($matches, fn($a, $b) => $b['score'] <=> $a['score']);
 
         return $matches;
+    }
+
+    /**
+     * Import a staged customer into FA (create debtor + branch).
+     *
+     * @param int $stagingId ISU staging ID
+     * @param int|null $selectedDebtorNo Existing debtor to link to
+     * @param string|null $selectedBranch Existing branch to link to
+     * @return array ['debtor_no' => int, 'branch_ref' => string] or ['error' => string]
+     */
+    public function importCustomer(int $stagingId, ?int $selectedDebtorNo = null, ?string $selectedBranch = null): array
+    {
+        $staged = $this->gateway->getCustomerById($stagingId);
+
+        if ($staged === null) {
+            return ['error' => 'Staged record not found'];
+        }
+
+        $rawJson = json_decode($staged['raw_json'] ?? '{}', true);
+        $billing = $rawJson['billing'] ?? $rawJson;
+
+        if ($selectedDebtorNo !== null) {
+            $debtorNo = $selectedDebtorNo;
+            if ($selectedBranch !== null) {
+                $branchRef = $selectedBranch;
+            } else {
+                $branchRef = $this->createBranch($debtorNo, $billing);
+            }
+        } else {
+            $debtorNo = $this->createCustomer($billing);
+            $branchRef = $this->createBranch($debtorNo, $billing);
+        }
+
+        $this->gateway->updateStatus($stagingId, 'imported', [
+            'fa_debtor_no' => (string)$debtorNo,
+            'fa_branch_ref' => $branchRef,
+        ]);
+
+        return [
+            'debtor_no' => $debtorNo,
+            'branch_ref' => $branchRef
+        ];
+    }
+
+    /**
+     * Get all staged customers from ISU.
+     *
+     * @return array
+     */
+    public function getStagedCustomers(): array
+    {
+        return $this->gateway->getStagedCustomers();
+    }
+
+    /**
+     * Map ISU staging customer fields to legacy field names for matching.
+     *
+     * @param array $isuRecord ISU staging customer record
+     * @return array Legacy field format
+     */
+    private function mapIsuToLegacyFields(array $isuRecord): array
+    {
+        $rawJson = json_decode($isuRecord['raw_json'] ?? '{}', true);
+        $billing = $rawJson['billing'] ?? [];
+
+        return [
+            'email' => $isuRecord['customer_email'] ?? $billing['email'] ?? '',
+            'phone' => $isuRecord['customer_phone'] ?? $billing['phone'] ?? '',
+            'first_name' => $billing['first_name'] ?? '',
+            'last_name' => $billing['last_name'] ?? '',
+            'company' => $billing['company'] ?? $isuRecord['customer_name'] ?? '',
+            'address1' => $isuRecord['address_line1'] ?? $billing['address_1'] ?? '',
+        ];
     }
 
     private function calculateMatchScore(array $staged, array $candidate): float
@@ -223,47 +279,6 @@ class CustomerStaging
         return strtolower(trim(preg_replace('/\s+/', ' ', $addr)));
     }
 
-    public function importCustomer(int $stagingId, ?int $selectedDebtorNo = null, ?string $selectedBranch = null): array
-    {
-        $prefix = $this->db->getPrefix();
-
-        $staged = $this->db->query(sprintf(
-            "SELECT * FROM %swoo_customer_staging WHERE id = %d",
-            $prefix, $stagingId
-        ));
-
-        if (empty($staged)) {
-            return ['error' => 'Staged record not found'];
-        }
-
-        $data = $staged[0];
-        $billing = json_decode($data['raw_data'], true)['billing'] ?? [];
-
-        if ($selectedDebtorNo !== null) {
-            $debtorNo = $selectedDebtorNo;
-
-            if ($selectedBranch !== null) {
-                $branchRef = $selectedBranch;
-            } else {
-                $branchRef = $this->createBranch($debtorNo, $billing);
-            }
-        } else {
-            $debtorNo = $this->createCustomer($billing);
-            $branchRef = $this->createBranch($debtorNo, $billing);
-        }
-
-        $this->db->execute(sprintf(
-            "UPDATE %swoo_customer_staging SET imported = 1, imported_at = NOW(),
-             fa_debtor_no = %d, fa_branch_ref = '%s' WHERE id = %d",
-            $prefix, $debtorNo, $this->db->escape($branchRef), $stagingId
-        ));
-
-        return [
-            'debtor_no' => $debtorNo,
-            'branch_ref' => $branchRef
-        ];
-    }
-
     private function createCustomer(array $billing): int
     {
         $prefix = $this->db->getPrefix();
@@ -319,45 +334,10 @@ class CustomerStaging
         return $branchRef;
     }
 
-    public function getStagedCustomers(): array
-    {
-        $prefix = $this->db->getPrefix();
-        return $this->db->query(sprintf(
-            "SELECT * FROM %swoo_customer_staging ORDER BY staged_at DESC",
-            $prefix
-        ));
-    }
-
+    /**
+     * @deprecated 1.2.0 Use IsuStagingGateway::stageCustomer() instead.
+     */
     public function ensureStagingTable(): void
     {
-        $prefix = $this->db->getPrefix();
-        $this->db->execute(sprintf(
-            "CREATE TABLE IF NOT EXISTS %swoo_customer_staging (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                woo_customer_id INT,
-                woo_order_id INT,
-                email VARCHAR(255),
-                phone VARCHAR(50),
-                first_name VARCHAR(100),
-                last_name VARCHAR(100),
-                company VARCHAR(255),
-                address1 VARCHAR(255),
-                address2 VARCHAR(255),
-                city VARCHAR(100),
-                state VARCHAR(100),
-                postcode VARCHAR(20),
-                country VARCHAR(100),
-                raw_data TEXT,
-                imported TINYINT DEFAULT 0,
-                imported_at DATETIME NULL,
-                fa_debtor_no INT NULL,
-                fa_branch_ref VARCHAR(100) NULL,
-                staged_at DATETIME,
-                INDEX idx_email (email),
-                INDEX idx_woo_customer (woo_customer_id),
-                INDEX idx_imported (imported)
-            )",
-            $prefix
-        ));
     }
 }
