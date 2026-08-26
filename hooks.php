@@ -81,38 +81,50 @@ class hooks_ksf_FA_Woocommerce extends hooks
     }
 
     /**
-     * Add menu items under Stock menu
+     * Add menu items under External section (4th section)
      */
     public function install_options($app): void
     {
         global $path_to_root;
 
-        switch ($app->id) {
-            case 'stock':
-                $app->add_rapp_function(
-                    1,
-                    _('WooCommerce Sync'),
-                    $path_to_root . '/modules/' . $this->module_name . '/public/index.php',
-                    'SA_WOOCOMMERCE_SYNC'
-                );
+        $hasExternal = false;
+        foreach ($app->modules as $mod) {
+            if ($mod->name === _("External")) {
+                $hasExternal = true;
                 break;
-            case 'orders':
-                $app->add_rapp_function(
-                    1,
-                    _('Import Woo Orders'),
-                    $path_to_root . '/modules/' . $this->module_name . '/admin/import_orders.php',
-                    'SA_WOOCOMMERCE_IMPORT'
-                );
-                break;
-            case 'customers':
-                $app->add_rapp_function(
-                    1,
-                    _('Import Woo Customers'),
-                    $path_to_root . '/modules/' . $this->module_name . '/admin/import_customers.php',
-                    'SA_WOOCOMMERCE_IMPORT'
-                );
-                break;
+            }
         }
+        if (!$hasExternal) {
+            $app->add_module(_("External"));
+        }
+
+        // Find the level of the External section
+        $externalLevel = 3;
+        foreach ($app->modules as $idx => $mod) {
+            if ($mod->name === _("External")) {
+                $externalLevel = $idx;
+                break;
+            }
+        }
+
+        $app->add_rapp_function(
+            $externalLevel,
+            _('WooCommerce Sync'),
+            $path_to_root . '/modules/' . $this->module_name . '/public/index.php',
+            'SA_WOOCOMMERCE_SYNC'
+        );
+        $app->add_rapp_function(
+            $externalLevel,
+            _('Import Woo Orders'),
+            $path_to_root . '/modules/' . $this->module_name . '/admin/import_orders.php',
+            'SA_WOOCOMMERCE_IMPORT'
+        );
+        $app->add_rapp_function(
+            $externalLevel,
+            _('Import Woo Customers'),
+            $path_to_root . '/modules/' . $this->module_name . '/admin/import_customers.php',
+            'SA_WOOCOMMERCE_IMPORT'
+        );
     }
 
     /**

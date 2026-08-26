@@ -10,7 +10,8 @@
 
 $page_security = 'SA_WOOCOMMERCE_SYNC';
 
-require_once '../includes/session.inc';
+$path_to_root = "../../..";
+require_once $path_to_root . '/includes/session.inc';
 add_access_extensions();
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 include_once($path_to_root . '/modules/ksf_FA_Woocommerce/hooks.php');
